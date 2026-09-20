@@ -19,5 +19,30 @@
     <span>Always on top</span>
   </label>
 
+  <section class="size-controls" aria-labelledby="size-heading">
+    <h2 id="size-heading">Pet Size</h2>
+
+    <button
+      [class.active]="currentSize() === 'small'"
+      (click)="setPetSize('small')"
+    >
+      Small
+    </button>
+
+    <button
+      [class.active]="currentSize() === 'medium'"
+      (click)="setPetSize('medium')"
+    >
+      Medium
+    </button>
+
+    <button
+      [class.active]="currentSize() === 'large'"
+      (click)="setPetSize('large')"
+    >
+      Large
+    </button>
+  </section>
+
   <p class="credit">Pet by Milly, via Rive Community (CC BY)</p>
 </main>

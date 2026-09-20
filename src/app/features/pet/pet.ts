@@ -17,6 +17,10 @@ import {
 } from '@tauri-apps/api/window';
 
 import {
+  listen
+} from '@tauri-apps/api/event';
+
+import {
   PhysicalPosition
 } from '@tauri-apps/api/dpi';
 
@@ -88,6 +92,8 @@ export class Pet implements OnInit, OnDestroy {
 
   private unlistenMoved?: () => void;
 
+  private unlistenSizeChanged?: () => void;
+
 
   /*
    * =========================================================
@@ -117,7 +123,15 @@ export class Pet implements OnInit, OnDestroy {
    * =========================================================
    */
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
+
+    this.unlistenSizeChanged =
+      await listen<PetSize>(
+        'pet-size-changed',
+        event => {
+          this.setPetSize(event.payload);
+        }
+      );
 
     /*
      * ---------------------------------------------------------
@@ -816,6 +830,15 @@ export class Pet implements OnInit, OnDestroy {
       this.unlistenMoved();
 
       this.unlistenMoved =
+        undefined;
+    }
+
+
+    if (this.unlistenSizeChanged) {
+
+      this.unlistenSizeChanged();
+
+      this.unlistenSizeChanged =
         undefined;
     }
 

@@ -1,10 +1,13 @@
 import { Component, OnInit, signal } from '@angular/core';
+import { emit } from '@tauri-apps/api/event';
 import { load } from '@tauri-apps/plugin-store';
 import {
   disable,
   enable,
   isEnabled
 } from '@tauri-apps/plugin-autostart';
+
+type PetSize = 'small' | 'medium' | 'large';
 
 @Component({
   selector: 'app-settings',
@@ -14,6 +17,7 @@ import {
 export class Settings implements OnInit {
   autostartEnabled = signal(false);
   alwaysOnTop = signal(true);
+  currentSize = signal<PetSize>('medium');
 
   async ngOnInit(): Promise<void> {
     try {
@@ -22,6 +26,9 @@ export class Settings implements OnInit {
       const store = await load('settings.json', { autoSave: false });
       const savedAlwaysOnTop = await store.get<boolean>('alwaysOnTop');
       this.alwaysOnTop.set(savedAlwaysOnTop ?? true);
+
+      const savedSize = await store.get<PetSize>('petSize');
+      this.currentSize.set(savedSize ?? 'medium');
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
@@ -52,6 +59,19 @@ export class Settings implements OnInit {
     } catch (error) {
       this.alwaysOnTop.set(!nextValue);
       console.error('Failed to save always-on-top setting:', error);
+    }
+  }
+
+  async setPetSize(size: PetSize): Promise<void> {
+    try {
+      const store = await load('settings.json', { autoSave: false });
+      await store.set('petSize', size);
+      await store.save();
+
+      this.currentSize.set(size);
+      await emit('pet-size-changed', size);
+    } catch (error) {
+      console.error('Failed to save pet size:', error);
     }
   }
 }
