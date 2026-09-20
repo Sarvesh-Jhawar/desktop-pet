@@ -335,6 +335,15 @@ export class Pet implements OnInit, OnDestroy {
         getCurrentWindow();
 
 
+      const savedAlwaysOnTop =
+        await this.store.get<boolean>('alwaysOnTop');
+
+
+      await win.setAlwaysOnTop(
+        savedAlwaysOnTop ?? true
+      );
+
+
       /*
        * -------------------------------------------------------
        * RESTORE POSITION

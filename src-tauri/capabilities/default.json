@@ -3,7 +3,8 @@
   "identifier": "default",
   "description": "enables the default permissions",
   "windows": [
-    "main"
+    "main",
+    "settings"
   ],
   "permissions": [
     "core:default",
@@ -11,6 +12,7 @@
 "autostart:allow-disable",
 "autostart:allow-is-enabled",
 "core:window:allow-start-dragging",
+"core:window:allow-set-always-on-top",
 "store:default"
   ]
 }

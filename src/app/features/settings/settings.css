@@ -1,0 +1,38 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #f6f3ee;
+  color: #202020;
+}
+
+.settings-panel {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 28px;
+  font-family: Arial, sans-serif;
+}
+
+h1 {
+  margin: 0 0 28px;
+  font-size: 24px;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  font-size: 15px;
+}
+
+.setting-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: #2f6f5e;
+}
+
+.credit {
+  margin-top: 32px;
+  color: #777;
+  font-size: 11px;
+}

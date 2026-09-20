@@ -1,0 +1,23 @@
+<main class="settings-panel">
+  <h1>Pet Settings</h1>
+
+  <label class="setting-row">
+    <input
+      type="checkbox"
+      [checked]="autostartEnabled()"
+      (change)="toggleAutostart()"
+    />
+    <span>Start with Windows</span>
+  </label>
+
+  <label class="setting-row">
+    <input
+      type="checkbox"
+      [checked]="alwaysOnTop()"
+      (change)="toggleAlwaysOnTop()"
+    />
+    <span>Always on top</span>
+  </label>
+
+  <p class="credit">Pet by Milly, via Rive Community (CC BY)</p>
+</main>

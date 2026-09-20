@@ -76,39 +76,3 @@ canvas {
   border-top: 7px solid #ffffff;
 }
 
-.size-controls {
-  position: absolute;
-
-  bottom: 5px;
-  left: 50%;
-
-  transform: translateX(-50%);
-
-  z-index: 1001;
-
-  display: flex;
-  gap: 4px;
-}
-
-.size-controls button {
-  width: 24px;
-  height: 24px;
-
-  padding: 0;
-
-  border: none;
-  border-radius: 6px;
-
-  background: rgba(255, 255, 255, 0.9);
-
-  color: #333;
-
-  font-size: 11px;
-  font-weight: bold;
-
-  cursor: pointer;
-}
-
-.size-controls button:hover {
-  background: white;
-}

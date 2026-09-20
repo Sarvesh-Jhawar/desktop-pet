@@ -2,6 +2,7 @@ use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
     Manager,
+    WindowEvent,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -16,11 +17,23 @@ pub fn run() {
                 )?;
             }
 
+            if let Some(settings_window) = app.get_webview_window("settings") {
+                let window_for_close = settings_window.clone();
+
+                settings_window.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = window_for_close.hide();
+                    }
+                });
+            }
+
             // --- System tray setup ---
             let show_item = MenuItem::with_id(app, "show", "Show Pet", true, None::<&str>)?;
             let hide_item = MenuItem::with_id(app, "hide", "Hide Pet", true, None::<&str>)?;
+            let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_item, &hide_item, &quit_item])?;
+            let menu = Menu::with_items(app, &[&show_item, &hide_item, &settings_item, &quit_item])?;
 
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -35,6 +48,12 @@ pub fn run() {
                     "hide" => {
                         if let Some(w) = app.get_webview_window("main") {
                             let _ = w.hide();
+                        }
+                    }
+                    "settings" => {
+                        if let Some(w) = app.get_webview_window("settings") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
                         }
                     }
                     "quit" => {

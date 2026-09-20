@@ -27,6 +27,16 @@
 
         "shadow": false,
         "visible": true
+      },
+      {
+        "label": "settings",
+        "title": "Pet Settings",
+        "url": "index.html#/settings",
+        "width": 400,
+        "height": 500,
+        "visible": false,
+        "resizable": true,
+        "decorations": true
       }
     ]
   },
