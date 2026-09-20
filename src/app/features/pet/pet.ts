@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   ElementRef,
   OnDestroy,
@@ -47,6 +48,7 @@ const SIZE_MAP: Record<PetSize, number> = {
 
 @Component({
   selector: 'app-pet',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   templateUrl: './pet.html',
   styleUrl: './pet.css'

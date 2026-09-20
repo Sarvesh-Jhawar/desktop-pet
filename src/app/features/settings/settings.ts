@@ -1,4 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  signal
+} from '@angular/core';
 import { emit } from '@tauri-apps/api/event';
 import { load } from '@tauri-apps/plugin-store';
 import {
@@ -11,6 +16,7 @@ type PetSize = 'small' | 'medium' | 'large';
 
 @Component({
   selector: 'app-settings',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './settings.html',
   styleUrl: './settings.css'
 })
