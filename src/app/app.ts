@@ -5,10 +5,12 @@ import {
   disable,
   isEnabled
 } from '@tauri-apps/plugin-autostart';
+import { Pet } from './features/pet/pet';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet,Pet
+  ],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
