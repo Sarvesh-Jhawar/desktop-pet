@@ -9,7 +9,7 @@ import { Pet } from './features/pet/pet';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet,Pet
+  imports: [Pet
   ],
   templateUrl: './app.html',
   styleUrl: './app.css'

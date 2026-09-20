@@ -10,6 +10,7 @@
     "autostart:allow-enable",
 "autostart:allow-disable",
 "autostart:allow-is-enabled",
-"core:window:allow-start-dragging"
+"core:window:allow-start-dragging",
+"store:default"
   ]
 }
