@@ -37,6 +37,16 @@
         "visible": false,
         "resizable": true,
         "decorations": true
+      },
+      {
+        "label": "tasks",
+        "title": "My Tasks",
+        "url": "index.html#/tasks",
+        "width": 380,
+        "height": 500,
+        "visible": false,
+        "resizable": true,
+        "decorations": true
       }
     ]
   },
