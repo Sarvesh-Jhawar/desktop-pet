@@ -46,6 +46,10 @@ pub fn run() {
 
             Ok(())
         })
+        .plugin(tauri_plugin_autostart::init(
+    tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+    Some(vec!["--flags-unused-on-windows"]),
+))
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
