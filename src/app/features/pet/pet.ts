@@ -3,7 +3,8 @@ import {
   ElementRef,
   OnDestroy,
   OnInit,
-  ViewChild
+  ViewChild,
+  signal
 } from '@angular/core';
 
 import {
@@ -16,8 +17,7 @@ import {
 } from '@tauri-apps/api/window';
 
 import {
-  PhysicalPosition,
-  LogicalSize
+  PhysicalPosition
 } from '@tauri-apps/api/dpi';
 
 import {
@@ -25,12 +25,12 @@ import {
   Store
 } from '@tauri-apps/plugin-store';
 
+import {
+  PET_HAPPY_MESSAGES,
+  PET_GREETING_MESSAGES,
+  randomMessage
+} from '../../shared/pet-messages';
 
-/*
- * =========================================================
- * PET SIZE
- * =========================================================
- */
 
 type PetSize = 'small' | 'medium' | 'large';
 
@@ -40,12 +40,6 @@ const SIZE_MAP: Record<PetSize, number> = {
   large: 350
 };
 
-
-/*
- * =========================================================
- * PET COMPONENT
- * =========================================================
- */
 
 @Component({
   selector: 'app-pet',
@@ -86,15 +80,13 @@ export class Pet implements OnInit, OnDestroy {
 
   /*
    * =========================================================
-   * STORE
+   * POSITION PERSISTENCE
    * =========================================================
    */
 
   private store?: Store;
 
   private unlistenMoved?: () => void;
-
-  private unlistenCloseRequested?: () => void;
 
 
   /*
@@ -108,16 +100,29 @@ export class Pet implements OnInit, OnDestroy {
 
   /*
    * =========================================================
-   * INITIALIZATION
+   * SPEECH BUBBLE
+   * =========================================================
+   */
+
+  bubbleMessage = signal('');
+
+  bubbleVisible = signal(false);
+
+  private bubbleTimeout?: ReturnType<typeof setTimeout>;
+
+
+  /*
+   * =========================================================
+   * INIT
    * =========================================================
    */
 
   ngOnInit(): void {
 
     /*
-     * -------------------------------------------------------
-     * Rive / Milly
-     * -------------------------------------------------------
+     * ---------------------------------------------------------
+     * Rive
+     * ---------------------------------------------------------
      */
 
     this.rive = new Rive({
@@ -140,31 +145,20 @@ export class Pet implements OnInit, OnDestroy {
           'Milly Rive loaded successfully'
         );
 
-        /*
-         * Make Rive drawing surface match canvas.
-         */
-
         this.rive?.resizeDrawingSurfaceToCanvas();
 
-
-        /*
-         * Get legacy state machine inputs.
-         */
 
         const inputs =
           this.rive?.stateMachineInputs(
             'State Machine 1'
           );
 
+
         console.log(
           'Milly state machine inputs:',
           inputs
         );
 
-
-        /*
-         * Find DizzyTrigger.
-         */
 
         this.dizzyTrigger =
           inputs?.find(
@@ -185,7 +179,30 @@ export class Pet implements OnInit, OnDestroy {
             'DizzyTrigger not found'
           );
         }
+
+
+        /*
+         * -----------------------------------------------------
+         * GREETING
+         * -----------------------------------------------------
+         */
+
+        const greeting =
+          randomMessage(
+            PET_GREETING_MESSAGES
+          );
+
+        console.log(
+          'Milly greeting:',
+          greeting
+        );
+
+        this.showBubble(
+          greeting,
+          3000
+        );
       },
+
 
       onLoadError: (error) => {
 
@@ -198,9 +215,9 @@ export class Pet implements OnInit, OnDestroy {
 
 
     /*
-     * -------------------------------------------------------
-     * Mouse / Window Dragging
-     * -------------------------------------------------------
+     * ---------------------------------------------------------
+     * Mouse / dragging
+     * ---------------------------------------------------------
      */
 
     const canvas =
@@ -214,15 +231,21 @@ export class Pet implements OnInit, OnDestroy {
 
 
     window.addEventListener(
+      'mousemove',
+      this.onMouseMove
+    );
+
+
+    window.addEventListener(
       'mouseup',
       this.onMouseUp
     );
 
 
     /*
-     * -------------------------------------------------------
-     * Position + Size Persistence
-     * -------------------------------------------------------
+     * ---------------------------------------------------------
+     * Persistence
+     * ---------------------------------------------------------
      */
 
     this.initPersistence();
@@ -231,7 +254,57 @@ export class Pet implements OnInit, OnDestroy {
 
   /*
    * =========================================================
-   * INITIALIZE PERSISTENCE
+   * SPEECH BUBBLE
+   * =========================================================
+   */
+
+  private showBubble(
+    message: string,
+    durationMs = 2500
+  ): void {
+
+    console.log(
+      'Showing bubble:',
+      message
+    );
+
+
+    this.bubbleMessage.set(message);
+    this.bubbleVisible.set(true);
+
+
+    if (this.bubbleTimeout) {
+
+      clearTimeout(
+        this.bubbleTimeout
+      );
+    }
+
+
+    this.bubbleTimeout =
+      setTimeout(() => {
+
+        this.hideBubble();
+
+      }, durationMs);
+  }
+
+
+  private hideBubble(): void {
+
+    console.log(
+      'Hiding bubble'
+    );
+
+    this.bubbleVisible.set(false);
+    this.bubbleMessage.set('');
+    this.bubbleTimeout = undefined;
+  }
+
+
+  /*
+   * =========================================================
+   * POSITION + SIZE PERSISTENCE
    * =========================================================
    */
 
@@ -244,18 +317,13 @@ export class Pet implements OnInit, OnDestroy {
       );
 
 
-      /*
-       * -------------------------------------------------------
-       * Load one shared Store instance.
-       * -------------------------------------------------------
-       */
-
-      this.store = await load(
-        'settings.json',
-        {
-          autoSave: false
-        }
-      );
+      this.store =
+        await load(
+          'settings.json',
+          {
+            autoSave: false
+          }
+        );
 
 
       console.log(
@@ -263,18 +331,14 @@ export class Pet implements OnInit, OnDestroy {
       );
 
 
-      /*
-       * Get current Tauri window.
-       */
-
       const win =
         getCurrentWindow();
 
 
       /*
-       * =====================================================
+       * -------------------------------------------------------
        * RESTORE POSITION
-       * =====================================================
+       * -------------------------------------------------------
        */
 
       const savedPosition =
@@ -285,18 +349,12 @@ export class Pet implements OnInit, OnDestroy {
 
 
       console.log(
-        'Saved Milly position:',
+        'Saved position:',
         savedPosition
       );
 
 
       if (savedPosition) {
-
-        console.log(
-          'Restoring Milly position:',
-          savedPosition
-        );
-
 
         await win.setPosition(
           new PhysicalPosition(
@@ -305,23 +363,16 @@ export class Pet implements OnInit, OnDestroy {
           )
         );
 
-
         console.log(
-          'Milly position restored'
-        );
-
-      } else {
-
-        console.log(
-          'No saved Milly position found'
+          'Position restored'
         );
       }
 
 
       /*
-       * =====================================================
+       * -------------------------------------------------------
        * RESTORE SIZE
-       * =====================================================
+       * -------------------------------------------------------
        */
 
       const savedSize =
@@ -331,74 +382,37 @@ export class Pet implements OnInit, OnDestroy {
 
 
       console.log(
-        'Saved Milly size:',
+        'Saved size:',
         savedSize
       );
 
 
-      if (
-        savedSize === 'small' ||
-        savedSize === 'medium' ||
-        savedSize === 'large'
-      ) {
+      if (savedSize) {
 
         /*
-         * Apply saved size.
-         *
-         * persist = false because the value is already
-         * stored. We don't need to save it again.
+         * Apply without creating another
+         * persistence operation.
          */
 
-        await this.setPetSize(
-          savedSize,
-          false
-        );
-
-      } else {
-
-        /*
-         * No saved size.
-         * Use default medium size.
-         */
-
-        await this.applyPetSize(
-          this.currentSize
+        this.applyPetSize(
+          savedSize
         );
       }
 
 
       /*
-       * =====================================================
-       * SAVE POSITION IMMEDIATELY WHEN WINDOW MOVES
-       * =====================================================
-       *
-       * IMPORTANT:
-       *
-       * There is intentionally NO debounce here.
-       *
-       * Every Tauri window movement event immediately
-       * updates the store and saves it.
-       *
-       * This removes the old 300ms timer race condition.
+       * -------------------------------------------------------
+       * SAVE POSITION ON MOVE
+       * -------------------------------------------------------
        */
 
       this.unlistenMoved =
         await win.onMoved(
           async ({ payload: position }) => {
 
-            if (!this.store) {
-
-              console.warn(
-                'Store unavailable; position not saved'
-              );
-
-              return;
-            }
-
-
             try {
 
-              await this.store.set(
+              await this.store?.set(
                 'petPosition',
                 {
                   x: position.x,
@@ -407,78 +421,55 @@ export class Pet implements OnInit, OnDestroy {
               );
 
 
-              await this.store.save();
+              await this.store?.save();
 
 
               console.log(
-                'Milly position saved:',
-                {
-                  x: position.x,
-                  y: position.y
-                }
+                'Position saved:',
+                position
               );
 
             } catch (error) {
 
               console.error(
-                'Failed to save Milly position:',
+                'Failed to save position:',
                 error
               );
             }
           }
         );
-
-
-      console.log(
-        'Window position listener initialized'
-      );
 
 
       /*
-       * =====================================================
-       * SAVE BEFORE WINDOW CLOSE
-       * =====================================================
-       *
-       * This gives the frontend one final opportunity
-       * to flush the store before the window closes.
+       * -------------------------------------------------------
+       * SAVE ON CLOSE
+       * -------------------------------------------------------
        */
 
-      this.unlistenCloseRequested =
-        await win.onCloseRequested(
-          async () => {
+      await win.onCloseRequested(
+        async () => {
 
-            if (!this.store) {
+          try {
 
-              console.warn(
-                'Store unavailable during close'
-              );
+            await this.store?.save();
 
-              return;
-            }
+            console.log(
+              'Store saved before close'
+            );
 
+          } catch (error) {
 
-            try {
-
-              await this.store.save();
-
-
-              console.log(
-                'Milly settings saved before close'
-              );
-
-            } catch (error) {
-
-              console.error(
-                'Failed to save settings before close:',
-                error
-              );
-            }
+            console.error(
+              'Failed to save before close:',
+              error
+            );
           }
-        );
+        }
+      );
 
 
       console.log(
-        'Window close listener initialized'
+        'Persistence initialized'
       );
 
     } catch (error) {
@@ -493,66 +484,64 @@ export class Pet implements OnInit, OnDestroy {
 
   /*
    * =========================================================
-   * PET SIZE
+   * SET PET SIZE
    * =========================================================
    */
 
   async setPetSize(
-    size: PetSize,
-    persist: boolean = true
+    size: PetSize
   ): Promise<void> {
 
     console.log(
-      `Changing Milly size to: ${size}`
+      'Changing Milly size to:',
+      size
     );
 
-
-    /*
-     * Update current state.
-     */
 
     this.currentSize = size;
 
 
-    /*
-     * Apply visual + native window size.
-     */
-
-    await this.applyPetSize(size);
+    this.applyPetSize(
+      size
+    );
 
 
     /*
-     * Persist size if requested.
+     * Persist size
      */
 
-    if (
-      persist &&
-      this.store
-    ) {
+    if (!this.store) {
 
-      try {
+      console.warn(
+        'Store not available yet'
+      );
 
-        await this.store.set(
-          'petSize',
-          size
-        );
+      return;
+    }
 
 
-        await this.store.save();
+    try {
+
+      await this.store.set(
+        'petSize',
+        size
+      );
 
 
-        console.log(
-          'Milly size saved:',
-          size
-        );
+      await this.store.save();
 
-      } catch (error) {
 
-        console.error(
-          'Failed to save Milly size:',
-          error
-        );
-      }
+      console.log(
+        'Pet size saved:',
+        size
+      );
+
+    } catch (error) {
+
+      console.error(
+        'Failed to save pet size:',
+        error
+      );
     }
   }
 
@@ -563,19 +552,17 @@ export class Pet implements OnInit, OnDestroy {
    * =========================================================
    */
 
-  private async applyPetSize(
+  private applyPetSize(
     size: PetSize
-  ): Promise<void> {
+  ): void {
 
     const px =
       SIZE_MAP[size];
 
 
-    /*
-     * -------------------------------------------------------
-     * Update canvas CSS dimensions.
-     * -------------------------------------------------------
-     */
+    this.currentSize =
+      size;
+
 
     const canvas =
       this.canvasRef.nativeElement;
@@ -590,41 +577,19 @@ export class Pet implements OnInit, OnDestroy {
 
 
     /*
-     * -------------------------------------------------------
-     * Update Rive drawing surface.
-     * -------------------------------------------------------
+     * Update actual drawing surface.
      */
+
+    canvas.width = px;
+    canvas.height = px;
+
 
     this.rive?.resizeDrawingSurfaceToCanvas();
 
 
-    /*
-     * -------------------------------------------------------
-     * Resize native Tauri window.
-     * -------------------------------------------------------
-     */
-
-    try {
-
-      await getCurrentWindow().setSize(
-        new LogicalSize(
-          px,
-          px
-        )
-      );
-
-
-      console.log(
-        `Milly window resized to ${px}x${px}`
-      );
-
-    } catch (error) {
-
-      console.error(
-        'Failed to resize Milly window:',
-        error
-      );
-    }
+    console.log(
+      `Milly avatar resized to ${px}x${px}`
+    );
   }
 
 
@@ -642,11 +607,50 @@ export class Pet implements OnInit, OnDestroy {
       x: event.clientX,
       y: event.clientY
     };
+  };
 
 
-    /*
-     * Start native Tauri window dragging.
-     */
+  /*
+   * =========================================================
+   * MOUSE MOVE
+   * =========================================================
+   */
+
+  private onMouseMove = (
+    event: MouseEvent
+  ): void => {
+
+    if (!this.mouseDownPos) {
+      return;
+    }
+
+
+    const dx =
+      Math.abs(
+        event.clientX -
+        this.mouseDownPos.x
+      );
+
+
+    const dy =
+      Math.abs(
+        event.clientY -
+        this.mouseDownPos.y
+      );
+
+
+    const moved =
+      dx > this.DRAG_THRESHOLD ||
+      dy > this.DRAG_THRESHOLD;
+
+
+    if (!moved) {
+      return;
+    }
+
+
+    this.mouseDownPos = null;
+
 
     getCurrentWindow()
       .startDragging()
@@ -694,12 +698,6 @@ export class Pet implements OnInit, OnDestroy {
       dy > this.DRAG_THRESHOLD;
 
 
-    /*
-     * Small movement = click.
-     *
-     * Larger movement = drag.
-     */
-
     if (!moved) {
 
       this.onPetClick();
@@ -712,28 +710,57 @@ export class Pet implements OnInit, OnDestroy {
 
   /*
    * =========================================================
-   * MILLY CLICK
+   * PET CLICK
    * =========================================================
    */
 
   private onPetClick(): void {
 
-    if (!this.dizzyTrigger) {
+    console.log(
+      'PET CLICKED'
+    );
+
+
+    /*
+     * Animation
+     */
+
+    if (this.dizzyTrigger) {
+
+      console.log(
+        'Firing DizzyTrigger'
+      );
+
+      this.dizzyTrigger.fire();
+
+    } else {
 
       console.warn(
         'DizzyTrigger is not ready yet'
       );
-
-      return;
     }
 
 
+    /*
+     * Message
+     */
+
+    const message =
+      randomMessage(
+        PET_HAPPY_MESSAGES
+      );
+
+
     console.log(
-      'Milly clicked → DizzyTrigger fired'
+      'Pet message:',
+      message
     );
 
 
-    this.dizzyTrigger.fire();
+    this.showBubble(
+      message,
+      2500
+    );
   }
 
 
@@ -749,15 +776,15 @@ export class Pet implements OnInit, OnDestroy {
       this.canvasRef.nativeElement;
 
 
-    /*
-     * -------------------------------------------------------
-     * Remove mouse listeners.
-     * -------------------------------------------------------
-     */
-
     canvas.removeEventListener(
       'mousedown',
       this.onMouseDown
+    );
+
+
+    window.removeEventListener(
+      'mousemove',
+      this.onMouseMove
     );
 
 
@@ -767,11 +794,13 @@ export class Pet implements OnInit, OnDestroy {
     );
 
 
-    /*
-     * -------------------------------------------------------
-     * Remove window movement listener.
-     * -------------------------------------------------------
-     */
+    if (this.bubbleTimeout) {
+
+      clearTimeout(
+        this.bubbleTimeout
+      );
+    }
+
 
     if (this.unlistenMoved) {
 
@@ -781,27 +810,6 @@ export class Pet implements OnInit, OnDestroy {
         undefined;
     }
 
-
-    /*
-     * -------------------------------------------------------
-     * Remove close listener.
-     * -------------------------------------------------------
-     */
-
-    if (this.unlistenCloseRequested) {
-
-      this.unlistenCloseRequested();
-
-      this.unlistenCloseRequested =
-        undefined;
-    }
-
-
-    /*
-     * -------------------------------------------------------
-     * Clean up Rive.
-     * -------------------------------------------------------
-     */
 
     this.rive?.cleanup();
 

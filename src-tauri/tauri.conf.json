@@ -3,26 +3,34 @@
   "productName": "desktop-pet",
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
+
   "build": {
     "frontendDist": "../dist/desktop-pet/browser",
     "devUrl": "http://localhost:4200",
     "beforeDevCommand": "npm run start",
     "beforeBuildCommand": "npm run build"
   },
+
   "app": {
-  "windows": [
-    {
-      "title": "Desktop Pet",
-      "width": 300,
-      "height": 300,
-      "transparent": true,
-      "decorations": false,
-      "alwaysOnTop": true,
-      "resizable": false,
-      "skipTaskbar": false
-    }
-  ]
-},
+    "windows": [
+      {
+        "label": "main",
+        "title": "Desktop Pet",
+        "width": 300,
+        "height": 300,
+
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "skipTaskbar": false,
+
+        "shadow": false,
+        "visible": true
+      }
+    ]
+  },
+
   "bundle": {
     "active": true,
     "targets": "all",

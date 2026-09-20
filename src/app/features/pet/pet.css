@@ -1,16 +1,114 @@
-
 :host {
   display: block;
   width: 100%;
   height: 100%;
-  background: transparent;
+  background: transparent !important;
+}
+
+.pet-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: transparent !important;
+  overflow: visible;
 }
 
 canvas {
   display: block;
-  background: transparent;
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+  border: none;
+  outline: none;
 
-  /* Allow TypeScript setPetSize() to control dimensions */
   width: 250px;
   height: 250px;
+}
+
+.speech-bubble {
+  position: absolute;
+
+  top: 8px;
+  left: 125px;
+
+  transform: translateX(-50%);
+
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  z-index: 99999;
+
+  background: #ffffff;
+  color: #222222;
+
+  padding: 8px 14px;
+
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 14px;
+
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+
+  white-space: nowrap;
+
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+
+  pointer-events: none;
+}
+
+.speech-bubble::after {
+  content: '';
+
+  position: absolute;
+
+  bottom: -7px;
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  width: 0;
+  height: 0;
+
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 7px solid #ffffff;
+}
+
+.size-controls {
+  position: absolute;
+
+  bottom: 5px;
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  z-index: 1001;
+
+  display: flex;
+  gap: 4px;
+}
+
+.size-controls button {
+  width: 24px;
+  height: 24px;
+
+  padding: 0;
+
+  border: none;
+  border-radius: 6px;
+
+  background: rgba(255, 255, 255, 0.9);
+
+  color: #333;
+
+  font-size: 11px;
+  font-weight: bold;
+
+  cursor: pointer;
+}
+
+.size-controls button:hover {
+  background: white;
 }

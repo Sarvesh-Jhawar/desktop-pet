@@ -1,32 +1,37 @@
 <div class="pet-container">
 
+  @if (bubbleVisible()) {
+    <div class="speech-bubble">
+      {{ bubbleMessage() }}
+    </div>
+  }
+
   <canvas
     #petCanvas
     width="250"
     height="250"
   ></canvas>
 
-  <div
-    style="
-      position: absolute;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 4px;
-    "
-  >
-    <button (click)="setPetSize('small')">
+  <div class="size-controls">
+
+    <button
+      (click)="setPetSize('small')"
+    >
       S
     </button>
 
-    <button (click)="setPetSize('medium')">
+    <button
+      (click)="setPetSize('medium')"
+    >
       M
     </button>
 
-    <button (click)="setPetSize('large')">
+    <button
+      (click)="setPetSize('large')"
+    >
       L
     </button>
+
   </div>
 
 </div>
