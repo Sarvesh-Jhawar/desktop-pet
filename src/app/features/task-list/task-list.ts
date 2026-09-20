@@ -4,6 +4,7 @@ import {
   OnInit,
   inject
 } from '@angular/core';
+import { emit } from '@tauri-apps/api/event';
 import { FormsModule } from '@angular/forms';
 import { TaskStoreService } from '../../core/task-store.service';
 import { Task } from '../../shared/task.model';
@@ -42,8 +43,13 @@ export class TaskList implements OnInit {
   }
 
   async toggleComplete(task: Task): Promise<void> {
-    await this.taskStore.toggleComplete(task.id);
+    const updated = await this.taskStore.toggleComplete(task.id);
     await this.refresh();
+
+    if (updated?.completed) {
+      console.log('Emitting task-completed payload:', { title: updated.title });
+      await emit('task-completed', { title: updated.title });
+    }
   }
 
   async deleteTask(task: Task): Promise<void> {

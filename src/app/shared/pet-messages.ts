@@ -24,6 +24,14 @@ export const PET_HAPPY_MESSAGES: string[] = [
 ];
 
 
+export const PET_TASK_COMPLETE_MESSAGES: string[] = [
+  '🎉 Nice work!',
+  'One down!',
+  "You're on fire!",
+  'Task crushed! 💪'
+];
+
+
 export function randomMessage(
   messages: string[]
 ): string {

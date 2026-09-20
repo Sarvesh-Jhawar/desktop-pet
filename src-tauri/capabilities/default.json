@@ -9,11 +9,17 @@
   ],
   "permissions": [
     "core:default",
+    "core:event:allow-emit",
+    "core:event:allow-emit-to",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
     "autostart:allow-enable",
 "autostart:allow-disable",
 "autostart:allow-is-enabled",
 "core:window:allow-start-dragging",
 "core:window:allow-set-always-on-top",
+"core:window:allow-show",
+"core:window:allow-set-focus",
 "store:default"
   ]
 }

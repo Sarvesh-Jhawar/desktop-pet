@@ -34,6 +34,7 @@ import {
 import {
   PET_HAPPY_MESSAGES,
   PET_GREETING_MESSAGES,
+  PET_TASK_COMPLETE_MESSAGES,
   randomMessage
 } from '../../shared/pet-messages';
 
@@ -99,6 +100,8 @@ export class Pet implements OnInit, OnDestroy {
 
   private unlistenSizeChanged?: () => void;
 
+  private unlistenTaskComplete?: () => void;
+
 
   /*
    * =========================================================
@@ -138,6 +141,19 @@ export class Pet implements OnInit, OnDestroy {
             this.setPetSize(event.payload);
           }
         );
+
+      this.unlistenTaskComplete =
+        await listen<{ title: string }>(
+          'task-completed',
+          event => {
+            console.log('Received task-completed event payload:', event.payload);
+            this.onTaskCompleted(event.payload.title).catch(error => {
+              console.error('Failed to react to completed task:', error);
+            });
+          }
+        );
+
+      console.log('Pet task-completed listener registered');
     }
 
     /*
@@ -322,7 +338,6 @@ export class Pet implements OnInit, OnDestroy {
     );
 
     this.bubbleVisible.set(false);
-    this.bubbleMessage.set('');
     this.bubbleTimeout = undefined;
   }
 
@@ -798,6 +813,44 @@ export class Pet implements OnInit, OnDestroy {
   }
 
 
+  private async onTaskCompleted(
+    taskTitle: string
+  ): Promise<void> {
+
+    console.log('Entered onTaskCompleted:', taskTitle);
+    const win = getCurrentWindow();
+    console.log('Showing pet after task completion:', taskTitle);
+    try {
+      await win.show();
+      await win.setFocus();
+      console.log('Pet window shown and focused');
+    } catch (error) {
+      console.error('Failed to show or focus pet window:', error);
+    }
+
+    console.log(
+      'dizzyTrigger before fire:',
+      this.dizzyTrigger === undefined ? 'undefined' : this.dizzyTrigger
+    );
+
+    if (this.dizzyTrigger) {
+      this.dizzyTrigger.fire();
+    }
+
+    console.log('Showing task completion bubble');
+
+    console.log(
+      'Task completed:',
+      taskTitle
+    );
+
+    this.showBubble(
+      randomMessage(PET_TASK_COMPLETE_MESSAGES),
+      3000
+    );
+  }
+
+
   /*
    * =========================================================
    * CLEANUP
@@ -850,6 +903,14 @@ export class Pet implements OnInit, OnDestroy {
       this.unlistenSizeChanged();
 
       this.unlistenSizeChanged =
+        undefined;
+    }
+
+    if (this.unlistenTaskComplete) {
+
+      this.unlistenTaskComplete();
+
+      this.unlistenTaskComplete =
         undefined;
     }
 

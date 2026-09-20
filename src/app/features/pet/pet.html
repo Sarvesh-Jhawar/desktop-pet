@@ -1,10 +1,12 @@
 <div class="pet-container">
 
-  @if (bubbleVisible()) {
-    <div class="speech-bubble">
-      {{ bubbleMessage() }}
-    </div>
-  }
+  <div
+    class="speech-bubble"
+    [class.visible]="bubbleVisible()"
+    [attr.aria-hidden]="!bubbleVisible()"
+  >
+    {{ bubbleMessage() }}
+  </div>
 
   <canvas
     #petCanvas
