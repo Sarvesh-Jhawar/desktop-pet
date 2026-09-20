@@ -25,3 +25,4 @@ tauri = { version = "2.11.6", features = ["tray-icon"] }
 tauri-plugin-log = "2"
 tauri-plugin-autostart = "2.5.1"
 tauri-plugin-store = "2.4.5"
+tauri-plugin-notification = "2.4.0"

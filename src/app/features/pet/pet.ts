@@ -5,6 +5,7 @@ import {
   OnDestroy,
   OnInit,
   ViewChild,
+  inject,
   signal
 } from '@angular/core';
 
@@ -36,6 +37,8 @@ import {
   randomMessage
 } from '../../shared/pet-messages';
 
+import { TaskStoreService } from '../../core/task-store.service';
+
 
 type PetSize = 'small' | 'medium' | 'large';
 
@@ -54,6 +57,11 @@ const SIZE_MAP: Record<PetSize, number> = {
   styleUrl: './pet.css'
 })
 export class Pet implements OnInit, OnDestroy {
+
+  private readonly taskStore = inject(TaskStoreService);
+
+  private readonly isTauriRuntime =
+    Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
 
   @ViewChild('petCanvas', { static: true })
   canvasRef!: ElementRef<HTMLCanvasElement>;
@@ -127,13 +135,15 @@ export class Pet implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
 
-    this.unlistenSizeChanged =
-      await listen<PetSize>(
-        'pet-size-changed',
-        event => {
-          this.setPetSize(event.payload);
-        }
-      );
+    if (this.isTauriRuntime) {
+      this.unlistenSizeChanged =
+        await listen<PetSize>(
+          'pet-size-changed',
+          event => {
+            this.setPetSize(event.payload);
+          }
+        );
+    }
 
     /*
      * ---------------------------------------------------------
@@ -264,7 +274,24 @@ export class Pet implements OnInit, OnDestroy {
      * ---------------------------------------------------------
      */
 
-    this.initPersistence();
+    if (this.isTauriRuntime) {
+      this.initPersistence();
+
+      this.taskStore.createTask({
+        title: 'Test task from Phase 2 Step 1',
+        priority: 'medium'
+      }).then(
+        task => console.log('Created task:', task),
+        error => console.error('Failed to create task:', error)
+      );
+
+      this.taskStore.getAllTasks().then(
+        tasks => console.log('All tasks:', tasks),
+        error => console.error('Failed to load tasks:', error)
+      );
+    } else {
+      console.info('Tauri APIs are unavailable; running in browser preview mode.');
+    }
   }
 
 
