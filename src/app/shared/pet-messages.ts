@@ -48,6 +48,14 @@ export const PET_TIMER_COMPLETE_MESSAGES: string[] = [
 export const PET_REMINDER_MESSAGES_PREFIX = "Don't forget: ";
 
 
+export const PET_SLEEPING_MESSAGES: string[] = [
+  'Zzz... Milly is getting sleepy.',
+  'Zzz... Time for a quiet little pause.',
+  'Milly is feeling sleepy. See you soon.',
+  'Sleepy mode: on.'
+];
+
+
 export function randomMessage(
   messages: string[]
 ): string {

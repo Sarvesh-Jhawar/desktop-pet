@@ -37,6 +37,7 @@ import {
   PET_GREETING_MESSAGES,
   PET_TASK_COMPLETE_MESSAGES,
   PET_REMINDER_MESSAGES_PREFIX,
+  PET_SLEEPING_MESSAGES,
   PET_TIMER_COMPLETE_MESSAGES,
   randomMessage
 } from '../../shared/pet-messages';
@@ -44,6 +45,7 @@ import { ReminderSchedulerService } from '../../core/reminder-scheduler.service'
 import { Reminder } from '../../shared/reminder.model';
 import { TimerService, TimerState } from '../../core/timer.service';
 import { PetStateService } from '../../core/pet-state.service';
+import { PetRulesService } from '../../core/pet-rules.service';
 
 type PetSize = 'small' | 'medium' | 'large';
 
@@ -68,6 +70,8 @@ export class Pet implements OnInit, OnDestroy {
   private readonly reminderScheduler = inject(ReminderSchedulerService);
 
   private readonly petState = inject(PetStateService);
+
+  private readonly petRules = inject(PetRulesService);
 
   private readonly isTauriRuntime =
     Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
@@ -180,6 +184,11 @@ export class Pet implements OnInit, OnDestroy {
         void this.onReminderDue(reminder);
       };
       this.reminderScheduler.start();
+      this.petRules.onStateChange = state => {
+        if (state === 'sleeping') {
+          this.showBubble(randomMessage(PET_SLEEPING_MESSAGES), 4000);
+        }
+      };
 
       this.unlistenTimerCommand = await listen<{
         action: string;
@@ -232,6 +241,7 @@ export class Pet implements OnInit, OnDestroy {
 
         this.rive?.resizeDrawingSurfaceToCanvas();
         this.petState.attach(this.rive!);
+        this.petRules.start();
 
 
         const inputs =
@@ -913,13 +923,17 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       this.dizzyTrigger === undefined ? 'undefined' : this.dizzyTrigger
     );
 
+    this.petRules.setTemporaryOverride(true);
     this.petState.setState('celebrating', true);
 
     this.showBubble(
       randomMessage(PET_TASK_COMPLETE_MESSAGES),
       3000
     );
-    setTimeout(() => this.petState.resetToIdle(), 3000);
+    setTimeout(() => {
+      this.petState.resetToIdle();
+      this.petRules.setTemporaryOverride(false);
+    }, 3000);
   }
 
   private async onTimerCompleted(timer: TimerState): Promise<void> {
@@ -927,13 +941,17 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     await win.show();
     await win.setFocus();
 
+    this.petRules.setTemporaryOverride(true);
     this.petState.setState('celebrating', true);
 
     this.showBubble(
       `Focus timer "${timer.label}" complete! ${randomMessage(PET_TIMER_COMPLETE_MESSAGES)}`,
       3500
     );
-    setTimeout(() => this.petState.resetToIdle(), 3500);
+    setTimeout(() => {
+      this.petState.resetToIdle();
+      this.petRules.setTemporaryOverride(false);
+    }, 3500);
   }
 
   private async onReminderDue(reminder: Reminder): Promise<void> {
@@ -941,13 +959,17 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     await win.show();
     await win.setFocus();
 
+    this.petRules.setTemporaryOverride(true);
     this.petState.setState('waiting');
 
     this.showBubble(
       PET_REMINDER_MESSAGES_PREFIX + reminder.title,
       4000
     );
-    setTimeout(() => this.petState.resetToIdle(), 4000);
+    setTimeout(() => {
+      this.petState.resetToIdle();
+      this.petRules.setTemporaryOverride(false);
+    }, 4000);
   }
 
 
@@ -1019,6 +1041,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.timerService.onComplete = undefined;
     this.reminderScheduler.onReminderDue = undefined;
     this.reminderScheduler.stop();
+    this.petRules.stop();
 
 
     this.rive?.cleanup();

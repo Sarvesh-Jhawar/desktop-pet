@@ -44,6 +44,11 @@ export class PetStateService {
     this.defaultShellColor = rive.viewModelInstance?.color('shellColor')?.value;
     this.dizzyTrigger = rive.stateMachineInputs('State Machine 1')
       ?.find(input => input.name === 'DizzyTrigger');
+    console.log('[PetState] attached', {
+      defaultShellColor: this.defaultShellColor,
+      hasShellColor: Boolean(rive.viewModelInstance?.color('shellColor')),
+      hasAgentState: Boolean(rive.viewModelInstance?.enum('agentState'))
+    });
   }
 
   getState(): PetState {
@@ -65,6 +70,9 @@ export class PetStateService {
     const color = instance.color('shellColor');
     if (color && shellColor !== undefined) {
       color.value = shellColor;
+      console.log('[PetState] applied', state, shellColor);
+    } else {
+      console.warn('[PetState] shellColor was not available', state);
     }
 
     if (fireDizzy) {
