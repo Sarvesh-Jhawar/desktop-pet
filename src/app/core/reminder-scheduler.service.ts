@@ -35,13 +35,24 @@ export class ReminderSchedulerService {
           : new Date(reminder.scheduledAt);
 
         if (effectiveTime <= now) {
-          const triggeredReminder = { ...reminder, triggered: true, snoozedUntil: undefined };
-          await this.reminderStore.update(reminder.id, {
-            triggered: true,
-            snoozedUntil: undefined
-          });
-          await emit('reminder-triggered', triggeredReminder);
-          this.onReminderDue?.(triggeredReminder);
+          if (reminder.repeatIntervalMinutes) {
+            const nextTime = new Date(
+              now.getTime() + reminder.repeatIntervalMinutes * 60_000
+            ).toISOString();
+            await this.reminderStore.update(reminder.id, {
+              scheduledAt: nextTime,
+              snoozedUntil: undefined,
+              triggered: false
+            });
+          } else {
+            await this.reminderStore.update(reminder.id, {
+              triggered: true,
+              snoozedUntil: undefined
+            });
+          }
+
+          await emit('reminder-triggered', reminder);
+          this.onReminderDue?.(reminder);
         }
       }
     } finally {

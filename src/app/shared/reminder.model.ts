@@ -5,4 +5,5 @@ export interface Reminder {
   completed: boolean;
   triggered: boolean;
   snoozedUntil?: string;
+  repeatIntervalMinutes?: number;
 }

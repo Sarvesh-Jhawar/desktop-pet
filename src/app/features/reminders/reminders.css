@@ -36,3 +36,15 @@ li {
 button {
   padding: 5px 8px;
 }
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.repeat-badge {
+  color: #4a90d9;
+  font-size: 11px;
+}

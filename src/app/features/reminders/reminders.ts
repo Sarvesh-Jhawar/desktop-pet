@@ -16,6 +16,7 @@ export class Reminders implements OnInit {
   reminders: Reminder[] = [];
   newTitle = '';
   newDateTime = '';
+  newRepeatMinutes: number | null = null;
 
   async ngOnInit(): Promise<void> {
     await this.refresh();
@@ -27,9 +28,27 @@ export class Reminders implements OnInit {
 
   async add(): Promise<void> {
     if (!this.newTitle.trim() || !this.newDateTime) return;
-    await this.store.create(this.newTitle.trim(), new Date(this.newDateTime).toISOString());
+    const reminder = await this.store.create(
+      this.newTitle.trim(),
+      new Date(this.newDateTime).toISOString()
+    );
+    if (this.newRepeatMinutes) {
+      await this.store.update(reminder.id, {
+        repeatIntervalMinutes: this.newRepeatMinutes
+      });
+    }
     this.newTitle = '';
     this.newDateTime = '';
+    this.newRepeatMinutes = null;
+    await this.refresh();
+  }
+
+  async addPreset(title: string, minutes: number): Promise<void> {
+    const reminder = await this.store.create(
+      title,
+      new Date(Date.now() + minutes * 60_000).toISOString()
+    );
+    await this.store.update(reminder.id, { repeatIntervalMinutes: minutes });
     await this.refresh();
   }
 
