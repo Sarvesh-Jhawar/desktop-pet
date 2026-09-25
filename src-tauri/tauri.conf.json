@@ -26,36 +26,16 @@
         "skipTaskbar": false,
 
         "shadow": false,
-        "visible": true
+        "visible": false
       },
       {
-        "label": "settings",
-        "title": "Pet Settings",
-        "url": "index.html#/settings",
-        "width": 400,
-        "height": 500,
-        "visible": false,
+        "label": "dashboard",
+        "title": "Milly Dashboard",
+        "url": "index.html#/dashboard",
+        "width": 980,
+        "height": 720,
+        "visible": true,
         "resizable": true,
-        "decorations": true
-      },
-      {
-        "label": "tasks",
-        "title": "My Tasks",
-        "url": "index.html#/tasks",
-        "width": 380,
-        "height": 500,
-        "visible": false,
-        "resizable": true,
-        "decorations": true
-      },
-      {
-        "label": "timer",
-        "title": "Focus Timer",
-        "url": "index.html#/timer",
-        "width": 320,
-        "height": 300,
-        "visible": false,
-        "resizable": false,
         "decorations": true
       }
     ]

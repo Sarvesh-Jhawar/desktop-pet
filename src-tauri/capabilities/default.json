@@ -4,9 +4,7 @@
   "description": "enables the default permissions",
   "windows": [
     "main",
-    "settings",
-    "tasks",
-    "timer"
+    "dashboard"
   ],
   "permissions": [
     "core:default",

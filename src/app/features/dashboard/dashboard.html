@@ -1,0 +1,25 @@
+<main class="dashboard-shell">
+  <header class="dashboard-header">
+    <div>
+      <p class="eyebrow">Milly's workspace</p>
+      <h1>Desktop Pet Dashboard</h1>
+    </div>
+    <span class="status-dot">Milly is keeping watch</span>
+  </header>
+
+  <nav class="dashboard-tabs" aria-label="Dashboard sections">
+    <button [class.active]="activeTab === 'tasks'" (click)="selectTab('tasks')">Tasks</button>
+    <button [class.active]="activeTab === 'timers'" (click)="selectTab('timers')">Timers</button>
+    <button [class.active]="activeTab === 'reminders'" (click)="selectTab('reminders')">Reminders</button>
+    <button [class.active]="activeTab === 'settings'" (click)="selectTab('settings')">Settings</button>
+  </nav>
+
+  <section class="dashboard-content">
+    @switch (activeTab) {
+      @case ('tasks') { <app-task-list /> }
+      @case ('timers') { <app-timer /> }
+      @case ('reminders') { <app-reminders /> }
+      @case ('settings') { <app-settings /> }
+    }
+  </section>
+</main>

@@ -1,0 +1,38 @@
+.reminders-panel {
+  padding: 16px;
+  font-family: sans-serif;
+}
+
+.add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.title {
+  flex: 1;
+}
+
+.time,
+.empty {
+  color: #888;
+  font-size: 12px;
+}
+
+button {
+  padding: 5px 8px;
+}

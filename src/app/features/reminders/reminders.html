@@ -1,0 +1,26 @@
+<div class="reminders-panel">
+  <h2>Reminders</h2>
+
+  <div class="add-row">
+    <input [(ngModel)]="newTitle" placeholder="Reminder title..." />
+    <input type="datetime-local" [(ngModel)]="newDateTime" />
+    <button type="button" (click)="add()">Add</button>
+  </div>
+
+  <ul>
+    @for (reminder of reminders; track reminder.id) {
+      <li>
+        <span class="title">{{ reminder.title }}</span>
+        <span class="time">{{ reminder.scheduledAt | date:'short' }}</span>
+        @if (reminder.triggered) {
+          <button type="button" (click)="snooze(reminder, 5)">Snooze 5m</button>
+          <button type="button" (click)="dismiss(reminder)">Dismiss</button>
+        } @else {
+          <button type="button" (click)="delete(reminder)">Delete</button>
+        }
+      </li>
+    } @empty {
+      <li class="empty">No reminders yet.</li>
+    }
+  </ul>
+</div>

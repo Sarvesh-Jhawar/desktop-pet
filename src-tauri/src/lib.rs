@@ -44,11 +44,9 @@ pub fn run() {
             // --- System tray setup ---
             let show_item = MenuItem::with_id(app, "show", "Show Pet", true, None::<&str>)?;
             let hide_item = MenuItem::with_id(app, "hide", "Hide Pet", true, None::<&str>)?;
-            let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
-            let tasks_item = MenuItem::with_id(app, "tasks", "Tasks", true, None::<&str>)?;
-            let timer_item = MenuItem::with_id(app, "timer", "Timer", true, None::<&str>)?;
+            let dashboard_item = MenuItem::with_id(app, "dashboard", "Open Dashboard", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_item, &hide_item, &settings_item, &tasks_item, &timer_item, &quit_item])?;
+            let menu = Menu::with_items(app, &[&dashboard_item, &show_item, &hide_item, &quit_item])?;
 
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -60,39 +58,27 @@ pub fn run() {
                             let _ = w.set_focus();
                         }
                     }
-                    "hide" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.hide();
-                        }
-                    }
-                    "settings" => {
-                        if let Some(w) = app.get_webview_window("settings") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
-                    }
-                    "tasks" => {
-                        if let Some(w) = app.get_webview_window("tasks") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
-                    }
-                    "timer" => {
-                        if let Some(w) = app.get_webview_window("timer") {
+                    "dashboard" => {
+                        if let Some(w) = app.get_webview_window("dashboard") {
                             let _ = w.show();
                             let _ = w.set_focus();
                         } else {
                             let _ = WebviewWindowBuilder::new(
                                 app,
-                                "timer",
-                                WebviewUrl::App("index.html#/timer".into()),
+                                "dashboard",
+                                WebviewUrl::App("index.html#/dashboard".into()),
                             )
-                            .title("Focus Timer")
-                            .inner_size(320.0, 300.0)
-                            .resizable(false)
+                            .title("Milly Dashboard")
+                            .inner_size(980.0, 720.0)
+                            .resizable(true)
                             .decorations(true)
                             .visible(true)
                             .build();
+                        }
+                    }
+                    "hide" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.hide();
                         }
                     }
                     "quit" => {

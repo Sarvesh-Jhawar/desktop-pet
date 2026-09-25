@@ -45,6 +45,9 @@ export const PET_TIMER_COMPLETE_MESSAGES: string[] = [
 ];
 
 
+export const PET_REMINDER_MESSAGES_PREFIX = "Don't forget: ";
+
+
 export function randomMessage(
   messages: string[]
 ): string {

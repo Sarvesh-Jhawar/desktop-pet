@@ -36,9 +36,12 @@ import {
   PET_HAPPY_MESSAGES,
   PET_GREETING_MESSAGES,
   PET_TASK_COMPLETE_MESSAGES,
+  PET_REMINDER_MESSAGES_PREFIX,
   PET_TIMER_COMPLETE_MESSAGES,
   randomMessage
 } from '../../shared/pet-messages';
+import { ReminderSchedulerService } from '../../core/reminder-scheduler.service';
+import { Reminder } from '../../shared/reminder.model';
 import { TimerService, TimerState } from '../../core/timer.service';
 
 type PetSize = 'small' | 'medium' | 'large';
@@ -60,6 +63,8 @@ const SIZE_MAP: Record<PetSize, number> = {
 export class Pet implements OnInit, OnDestroy {
 
   private readonly timerService = inject(TimerService);
+
+  private readonly reminderScheduler = inject(ReminderSchedulerService);
 
   private readonly isTauriRuntime =
     Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
@@ -167,6 +172,11 @@ export class Pet implements OnInit, OnDestroy {
       this.timerService.onComplete = (timer: TimerState) => {
         void this.onTimerCompleted(timer);
       };
+
+      this.reminderScheduler.onReminderDue = (reminder: Reminder) => {
+        void this.onReminderDue(reminder);
+      };
+      this.reminderScheduler.start();
 
       this.unlistenTimerCommand = await listen<{
         action: string;
@@ -900,6 +910,21 @@ export class Pet implements OnInit, OnDestroy {
     );
   }
 
+  private async onReminderDue(reminder: Reminder): Promise<void> {
+    const win = getCurrentWindow();
+    await win.show();
+    await win.setFocus();
+
+    if (this.dizzyTrigger) {
+      this.dizzyTrigger.fire();
+    }
+
+    this.showBubble(
+      PET_REMINDER_MESSAGES_PREFIX + reminder.title,
+      4000
+    );
+  }
+
 
   /*
    * =========================================================
@@ -967,6 +992,8 @@ export class Pet implements OnInit, OnDestroy {
     this.unlistenTimerCommand?.();
     this.unlistenTimerRequestState?.();
     this.timerService.onComplete = undefined;
+    this.reminderScheduler.onReminderDue = undefined;
+    this.reminderScheduler.stop();
 
 
     this.rive?.cleanup();
