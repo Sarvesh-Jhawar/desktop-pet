@@ -1,0 +1,121 @@
+.timer-panel {
+  padding: 16px;
+  font-family: sans-serif;
+}
+
+header,
+.timer-heading,
+.add-fields,
+.timer-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+header,
+.timer-heading {
+  justify-content: space-between;
+}
+
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+header span,
+.status {
+  color: #666;
+  font-size: 12px;
+}
+
+.add-timer {
+  border-bottom: 1px solid #ddd;
+  margin: 12px 0;
+  padding-bottom: 12px;
+}
+
+.add-timer h3 {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.add-fields {
+  flex-wrap: wrap;
+}
+
+label {
+  display: grid;
+  font-size: 11px;
+  gap: 3px;
+}
+
+input {
+  box-sizing: border-box;
+  padding: 5px;
+  width: 58px;
+}
+
+input:first-child {
+  width: 110px;
+}
+
+button {
+  cursor: pointer;
+  padding: 6px 10px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.timer-list {
+  display: grid;
+  gap: 10px;
+}
+
+.timer-card {
+  border: 1px solid #d7d7d7;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.timer-card.running {
+  border-color: #3c78d8;
+}
+
+.timer-card h3 {
+  font-size: 15px;
+}
+
+.clock {
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
+  font-weight: bold;
+  margin: 7px 0 2px;
+}
+
+.status {
+  margin-bottom: 7px;
+  text-transform: capitalize;
+}
+
+.timer-actions {
+  flex-wrap: wrap;
+}
+
+.remove {
+  font-size: 11px;
+}
+
+.validation {
+  color: #a33;
+  font-size: 12px;
+  margin-top: 7px;
+}
+
+.empty {
+  color: #666;
+  font-size: 13px;
+}

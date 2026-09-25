@@ -19,6 +19,7 @@ import {
 } from '@tauri-apps/api/window';
 
 import {
+  emit,
   listen
 } from '@tauri-apps/api/event';
 
@@ -35,8 +36,10 @@ import {
   PET_HAPPY_MESSAGES,
   PET_GREETING_MESSAGES,
   PET_TASK_COMPLETE_MESSAGES,
+  PET_TIMER_COMPLETE_MESSAGES,
   randomMessage
 } from '../../shared/pet-messages';
+import { TimerService, TimerState } from '../../core/timer.service';
 
 type PetSize = 'small' | 'medium' | 'large';
 
@@ -55,6 +58,8 @@ const SIZE_MAP: Record<PetSize, number> = {
   styleUrl: './pet.css'
 })
 export class Pet implements OnInit, OnDestroy {
+
+  private readonly timerService = inject(TimerService);
 
   private readonly isTauriRuntime =
     Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
@@ -101,6 +106,10 @@ export class Pet implements OnInit, OnDestroy {
   private unlistenSizeChanged?: () => void;
 
   private unlistenTaskComplete?: () => void;
+
+  private unlistenTimerCommand?: () => void;
+
+  private unlistenTimerRequestState?: () => void;
 
 
   /*
@@ -154,6 +163,32 @@ export class Pet implements OnInit, OnDestroy {
         );
 
       console.log('Pet task-completed listener registered');
+
+      this.timerService.onComplete = (timer: TimerState) => {
+        void this.onTimerCompleted(timer);
+      };
+
+      this.unlistenTimerCommand = await listen<{
+        action: string;
+        id?: string;
+        label?: string;
+        duration?: number;
+      }>(
+        'timer-command',
+        event => {
+          const { action, id, label, duration } = event.payload;
+          if (action === 'add' && duration) this.timerService.add(label ?? '', duration);
+          if (action === 'remove' && id) this.timerService.remove(id);
+          if (action === 'start' && id) this.timerService.start(id);
+          if (action === 'pause' && id) this.timerService.pause(id);
+          if (action === 'resume' && id) this.timerService.resume(id);
+          if (action === 'reset' && id) this.timerService.reset(id);
+        }
+      );
+
+      this.unlistenTimerRequestState = await listen('timer-request-state', () => {
+        void emit('timer-tick', this.timerService.getState());
+      });
     }
 
     /*
@@ -850,6 +885,21 @@ export class Pet implements OnInit, OnDestroy {
     );
   }
 
+  private async onTimerCompleted(timer: TimerState): Promise<void> {
+    const win = getCurrentWindow();
+    await win.show();
+    await win.setFocus();
+
+    if (this.dizzyTrigger) {
+      this.dizzyTrigger.fire();
+    }
+
+    this.showBubble(
+      `Focus timer "${timer.label}" complete! ${randomMessage(PET_TIMER_COMPLETE_MESSAGES)}`,
+      3500
+    );
+  }
+
 
   /*
    * =========================================================
@@ -913,6 +963,10 @@ export class Pet implements OnInit, OnDestroy {
       this.unlistenTaskComplete =
         undefined;
     }
+
+    this.unlistenTimerCommand?.();
+    this.unlistenTimerRequestState?.();
+    this.timerService.onComplete = undefined;
 
 
     this.rive?.cleanup();

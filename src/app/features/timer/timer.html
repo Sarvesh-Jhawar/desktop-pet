@@ -1,0 +1,61 @@
+<div class="timer-panel">
+  <header>
+    <h2>Focus Timers</h2>
+    <span>{{ timers.length }} timers</span>
+  </header>
+
+  <section class="add-timer" aria-labelledby="add-timer-heading">
+    <h3 id="add-timer-heading">Add timer</h3>
+    <div class="add-fields">
+      <label>
+        Name
+        <input [(ngModel)]="newLabel" placeholder="Timer name" maxlength="32" />
+      </label>
+      <label>
+        Hours
+        <input type="number" [(ngModel)]="newHours" min="0" max="99" />
+      </label>
+      <label>
+        Minutes
+        <input type="number" [(ngModel)]="newMinutes" min="0" max="59" />
+      </label>
+      <label>
+        Seconds
+        <input type="number" [(ngModel)]="newSeconds" min="0" max="59" />
+      </label>
+      <button type="button" (click)="addTimer()">Add</button>
+    </div>
+    @if (validationMessage) {
+      <p class="validation" role="alert">{{ validationMessage }}</p>
+    }
+  </section>
+
+  <section class="timer-list" aria-label="Timers">
+    @for (timer of timers; track timer.id) {
+      <article class="timer-card" [class.running]="timer.status === 'running'">
+        <div class="timer-heading">
+          <h3>{{ timer.label }}</h3>
+          <button class="remove" type="button" (click)="remove(timer)" [disabled]="timer.status === 'running'" aria-label="Remove timer">Remove</button>
+        </div>
+        <div class="clock">{{ display(timer.remaining) }}</div>
+        <p class="status">{{ timer.status }}</p>
+        <div class="timer-actions">
+          @if (timer.status === 'idle' || timer.status === 'completed') {
+            <button type="button" (click)="start(timer)">Start</button>
+          }
+          @if (timer.status === 'running') {
+            <button type="button" (click)="pause(timer)">Pause</button>
+          }
+          @if (timer.status === 'paused') {
+            <button type="button" (click)="resume(timer)">Resume</button>
+          }
+          @if (timer.status !== 'idle') {
+            <button type="button" (click)="reset(timer)">Reset</button>
+          }
+        </div>
+      </article>
+    } @empty {
+      <p class="empty">Add a timer to get started.</p>
+    }
+  </section>
+</div>

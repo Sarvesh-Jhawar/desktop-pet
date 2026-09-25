@@ -32,6 +32,19 @@ export const PET_TASK_COMPLETE_MESSAGES: string[] = [
 ];
 
 
+export const PET_TIMER_COMPLETE_MESSAGES: string[] = [
+  '⏰ Focus session complete!',
+  'Great focus! Take a breather.',
+  "Time's up! Nicely done.",
+  'You made it to the finish line!',
+  'That was a brilliant stretch of focus.',
+  'Your future self says thank you.',
+  'Deep work complete. Tiny victory dance?',
+  'The timer bows to your concentration.',
+  'Excellent focus. Go enjoy a proper break.'
+];
+
+
 export function randomMessage(
   messages: string[]
 ): string {

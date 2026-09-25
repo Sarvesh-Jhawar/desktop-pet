@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "desktop-pet",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.desktoppet.milly",
 
   "build": {
     "frontendDist": "../dist/desktop-pet/browser",
@@ -46,6 +46,16 @@
         "height": 500,
         "visible": false,
         "resizable": true,
+        "decorations": true
+      },
+      {
+        "label": "timer",
+        "title": "Focus Timer",
+        "url": "index.html#/timer",
+        "width": 320,
+        "height": 300,
+        "visible": false,
+        "resizable": false,
         "decorations": true
       }
     ]

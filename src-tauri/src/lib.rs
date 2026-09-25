@@ -1,7 +1,9 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
+    webview::WebviewWindowBuilder,
     Manager,
+    WebviewUrl,
     WindowEvent,
 };
 
@@ -44,8 +46,9 @@ pub fn run() {
             let hide_item = MenuItem::with_id(app, "hide", "Hide Pet", true, None::<&str>)?;
             let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
             let tasks_item = MenuItem::with_id(app, "tasks", "Tasks", true, None::<&str>)?;
+            let timer_item = MenuItem::with_id(app, "timer", "Timer", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_item, &hide_item, &settings_item, &tasks_item, &quit_item])?;
+            let menu = Menu::with_items(app, &[&show_item, &hide_item, &settings_item, &tasks_item, &timer_item, &quit_item])?;
 
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -74,6 +77,24 @@ pub fn run() {
                             let _ = w.set_focus();
                         }
                     }
+                    "timer" => {
+                        if let Some(w) = app.get_webview_window("timer") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        } else {
+                            let _ = WebviewWindowBuilder::new(
+                                app,
+                                "timer",
+                                WebviewUrl::App("index.html#/timer".into()),
+                            )
+                            .title("Focus Timer")
+                            .inner_size(320.0, 300.0)
+                            .resizable(false)
+                            .decorations(true)
+                            .visible(true)
+                            .build();
+                        }
+                    }
                     "quit" => {
                         app.exit(0);
                     }
@@ -88,6 +109,7 @@ pub fn run() {
     Some(vec!["--flags-unused-on-windows"]),
 ))
         .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_notification::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

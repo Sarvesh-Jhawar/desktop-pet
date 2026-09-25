@@ -5,6 +5,11 @@ import {
   inject
 } from '@angular/core';
 import { emit } from '@tauri-apps/api/event';
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification
+} from '@tauri-apps/plugin-notification';
 import { FormsModule } from '@angular/forms';
 import { TaskStoreService } from '../../core/task-store.service';
 import { Task } from '../../shared/task.model';
@@ -49,6 +54,33 @@ export class TaskList implements OnInit {
     if (updated?.completed) {
       console.log('Emitting task-completed payload:', { title: updated.title });
       await emit('task-completed', { title: updated.title });
+      await this.notifyTaskComplete(updated.title);
+    }
+  }
+
+  private async notifyTaskComplete(title: string): Promise<void> {
+    try {
+      let granted = await isPermissionGranted();
+      console.log('Notification permission granted:', granted);
+
+      if (!granted) {
+        const permission = await requestPermission();
+        console.log('Notification permission request result:', permission);
+        granted = permission === 'granted';
+      }
+
+      if (!granted) {
+        console.warn('Notification permission was not granted.');
+        return;
+      }
+
+      await sendNotification({
+        title: 'Milly',
+        body: `🎉 Task completed: ${title}`
+      });
+      console.log('Task completion notification sent.');
+    } catch (error) {
+      console.error('Failed to send task completion notification:', error);
     }
   }
 

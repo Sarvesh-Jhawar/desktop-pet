@@ -5,7 +5,8 @@
   "windows": [
     "main",
     "settings",
-    "tasks"
+    "tasks",
+    "timer"
   ],
   "permissions": [
     "core:default",
@@ -20,6 +21,7 @@
 "core:window:allow-set-always-on-top",
 "core:window:allow-show",
 "core:window:allow-set-focus",
-"store:default"
+"store:default",
+"notification:default"
   ]
 }
