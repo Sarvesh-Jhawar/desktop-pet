@@ -43,6 +43,7 @@ import {
 import { ReminderSchedulerService } from '../../core/reminder-scheduler.service';
 import { Reminder } from '../../shared/reminder.model';
 import { TimerService, TimerState } from '../../core/timer.service';
+import { PetStateService } from '../../core/pet-state.service';
 
 type PetSize = 'small' | 'medium' | 'large';
 
@@ -65,6 +66,8 @@ export class Pet implements OnInit, OnDestroy {
   private readonly timerService = inject(TimerService);
 
   private readonly reminderScheduler = inject(ReminderSchedulerService);
+
+  private readonly petState = inject(PetStateService);
 
   private readonly isTauriRuntime =
     Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
@@ -228,6 +231,7 @@ export class Pet implements OnInit, OnDestroy {
         );
 
         this.rive?.resizeDrawingSurfaceToCanvas();
+        this.petState.attach(this.rive!);
 
 
         const inputs =
@@ -248,6 +252,37 @@ export class Pet implements OnInit, OnDestroy {
               input.name === 'DizzyTrigger'
           );
 
+        const vm = this.rive?.defaultViewModel() as any;
+        console.log('--- Default View Model ---', vm);
+
+        if (vm) {
+          console.log('--- View Model name ---', vm.name);
+          console.log('--- Property count ---', vm.propertyCount);
+          console.log('--- Properties (name + type) ---');
+          vm.properties?.forEach((prop: any) => {
+            console.log(`  name: "${prop.name}"  type: ${prop.type}`);
+          });
+        }
+
+        const instance = this.rive?.viewModelInstance;
+        if (instance && vm?.properties) {
+          console.log('--- Live values on bound instance ---');
+          vm.properties.forEach((prop: any) => {
+            try {
+              let liveValue: any;
+              if (prop.type === 'boolean') liveValue = instance.boolean(prop.name)?.value;
+              else if (prop.type === 'number') liveValue = instance.number(prop.name)?.value;
+              else if (prop.type === 'string') liveValue = instance.string(prop.name)?.value;
+              else if (prop.type === 'trigger') liveValue = '(trigger - no value)';
+              else if (prop.type === 'enumType') liveValue = instance.enum(prop.name)?.value;
+              console.log(`  ${prop.name} (${prop.type}) = ${liveValue}`);
+            } catch (error) {
+              console.log(`  ${prop.name} (${prop.type}) - couldn't read value`, error);
+            }
+          });
+        }
+
+console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null, 2));
 
         if (this.dizzyTrigger) {
 
@@ -878,21 +913,13 @@ export class Pet implements OnInit, OnDestroy {
       this.dizzyTrigger === undefined ? 'undefined' : this.dizzyTrigger
     );
 
-    if (this.dizzyTrigger) {
-      this.dizzyTrigger.fire();
-    }
-
-    console.log('Showing task completion bubble');
-
-    console.log(
-      'Task completed:',
-      taskTitle
-    );
+    this.petState.setState('celebrating', true);
 
     this.showBubble(
       randomMessage(PET_TASK_COMPLETE_MESSAGES),
       3000
     );
+    setTimeout(() => this.petState.resetToIdle(), 3000);
   }
 
   private async onTimerCompleted(timer: TimerState): Promise<void> {
@@ -900,14 +927,13 @@ export class Pet implements OnInit, OnDestroy {
     await win.show();
     await win.setFocus();
 
-    if (this.dizzyTrigger) {
-      this.dizzyTrigger.fire();
-    }
+    this.petState.setState('celebrating', true);
 
     this.showBubble(
       `Focus timer "${timer.label}" complete! ${randomMessage(PET_TIMER_COMPLETE_MESSAGES)}`,
       3500
     );
+    setTimeout(() => this.petState.resetToIdle(), 3500);
   }
 
   private async onReminderDue(reminder: Reminder): Promise<void> {
@@ -915,14 +941,13 @@ export class Pet implements OnInit, OnDestroy {
     await win.show();
     await win.setFocus();
 
-    if (this.dizzyTrigger) {
-      this.dizzyTrigger.fire();
-    }
+    this.petState.setState('waiting');
 
     this.showBubble(
       PET_REMINDER_MESSAGES_PREFIX + reminder.title,
       4000
     );
+    setTimeout(() => this.petState.resetToIdle(), 4000);
   }
 
 

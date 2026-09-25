@@ -52,6 +52,14 @@ export class Reminders implements OnInit {
     await this.refresh();
   }
 
+  async addTestReminder(): Promise<void> {
+    await this.store.create(
+      'Drink water (test)',
+      new Date(Date.now() + 30_000).toISOString()
+    );
+    await this.refresh();
+  }
+
   async dismiss(reminder: Reminder): Promise<void> {
     await this.store.update(reminder.id, { completed: true });
     await this.refresh();

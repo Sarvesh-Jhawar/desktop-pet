@@ -2,9 +2,10 @@ import { Routes } from '@angular/router';
 import { Pet } from './features/pet/pet';
 import { Settings } from './features/settings/settings';
 import { TaskList } from './features/task-list/task-list';
-import { Timer } from './features/timer/timer';
+
 import { Reminders } from './features/reminders/reminders';
 import { Dashboard } from './features/dashboard/dashboard';
+import { Timer } from './features/timer/timer';
 
 export const routes: Routes = [
 	{ path: '', component: Pet },
