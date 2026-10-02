@@ -32,20 +32,12 @@ import {
   Store
 } from '@tauri-apps/plugin-store';
 
-import {
-  PET_HAPPY_MESSAGES,
-  PET_GREETING_MESSAGES,
-  PET_TASK_COMPLETE_MESSAGES,
-  PET_REMINDER_MESSAGES_PREFIX,
-  PET_SLEEPING_MESSAGES,
-  PET_TIMER_COMPLETE_MESSAGES,
-  randomMessage
-} from '../../shared/pet-messages';
 import { ReminderSchedulerService } from '../../core/reminder-scheduler.service';
 import { Reminder } from '../../shared/reminder.model';
 import { TimerService, TimerState } from '../../core/timer.service';
 import { PetStateService } from '../../core/pet-state.service';
 import { PetRulesService } from '../../core/pet-rules.service';
+import { DialogueService } from '../../core/dialogue.service';
 
 type PetSize = 'small' | 'medium' | 'large';
 
@@ -72,6 +64,8 @@ export class Pet implements OnInit, OnDestroy {
   private readonly petState = inject(PetStateService);
 
   private readonly petRules = inject(PetRulesService);
+
+  private readonly dialogue = inject(DialogueService);
 
   private readonly isTauriRuntime =
     Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
@@ -184,10 +178,8 @@ export class Pet implements OnInit, OnDestroy {
         void this.onReminderDue(reminder);
       };
       this.reminderScheduler.start();
-      this.petRules.onStateChange = state => {
-        if (state === 'sleeping') {
-          this.showBubble(randomMessage(PET_SLEEPING_MESSAGES), 4000);
-        }
+      this.petRules.onRuleTriggered = context => {
+        this.showBubble(this.dialogue.getMessage(context), 3000);
       };
 
       this.unlistenTimerCommand = await listen<{
@@ -314,10 +306,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
          * -----------------------------------------------------
          */
 
-        const greeting =
-          randomMessage(
-            PET_GREETING_MESSAGES
-          );
+        const greeting = this.dialogue.getMessage('greeting');
 
         console.log(
           'Milly greeting:',
@@ -884,10 +873,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
      * Message
      */
 
-    const message =
-      randomMessage(
-        PET_HAPPY_MESSAGES
-      );
+    const message = this.dialogue.getMessage('click');
 
 
     console.log(
@@ -927,7 +913,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.petState.setState('celebrating', true);
 
     this.showBubble(
-      randomMessage(PET_TASK_COMPLETE_MESSAGES),
+      this.dialogue.getMessage('taskCompleted'),
       3000
     );
     setTimeout(() => {
@@ -945,7 +931,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.petState.setState('celebrating', true);
 
     this.showBubble(
-      `Focus timer "${timer.label}" complete! ${randomMessage(PET_TIMER_COMPLETE_MESSAGES)}`,
+      `Focus timer "${timer.label}" complete! ${this.dialogue.getMessage('timerCompleted')}`,
       3500
     );
     setTimeout(() => {
@@ -963,7 +949,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.petState.setState('waiting');
 
     this.showBubble(
-      PET_REMINDER_MESSAGES_PREFIX + reminder.title,
+      `${this.dialogue.getMessage('reminderDue')} ${reminder.title}`,
       4000
     );
     setTimeout(() => {

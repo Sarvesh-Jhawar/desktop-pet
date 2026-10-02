@@ -24,6 +24,14 @@ export const PET_HAPPY_MESSAGES: string[] = [
 ];
 
 
+export const PET_IDLE_MESSAGES: string[] = [
+  'All quiet here.',
+  'Ready when you are.',
+  'A calm moment is a good moment.',
+  'You have got this.'
+];
+
+
 export const PET_TASK_COMPLETE_MESSAGES: string[] = [
   '🎉 Nice work!',
   'One down!',

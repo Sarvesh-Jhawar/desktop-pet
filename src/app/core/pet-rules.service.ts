@@ -15,9 +15,9 @@ export class PetRulesService {
   private readonly taskStore = inject(TaskStoreService);
   private intervalId?: ReturnType<typeof setInterval>;
   private isOverriddenTemporarily = false;
-  private lastRuleState?: PetState;
+  private lastRuleMessageState: 'sleeping' | 'lateNight' | null = null;
 
-  onStateChange?: (state: PetState) => void;
+  onRuleTriggered?: (context: 'sleeping' | 'lateNight') => void;
 
   start(): void {
     if (this.intervalId) return;
@@ -42,12 +42,20 @@ export class PetRulesService {
     if (now.getHours() >= LATE_NIGHT_HOUR || now.getHours() < 6) {
       console.log('[PetRules] sleeping: late-night rule');
       this.applyRuleState('sleeping');
+      if (this.lastRuleMessageState !== 'lateNight') {
+        this.lastRuleMessageState = 'lateNight';
+        this.onRuleTriggered?.('lateNight');
+      }
       return;
     }
 
     if (idleMinutes >= IDLE_SLEEPY_THRESHOLD_MINUTES) {
       console.log('[PetRules] sleeping: inactivity rule');
       this.applyRuleState('sleeping');
+      if (this.lastRuleMessageState !== 'sleeping') {
+        this.lastRuleMessageState = 'sleeping';
+        this.onRuleTriggered?.('sleeping');
+      }
       return;
     }
 
@@ -61,14 +69,11 @@ export class PetRulesService {
     }
 
     this.applyRuleState('idle');
+    this.lastRuleMessageState = null;
   }
 
   private applyRuleState(state: PetState): void {
     this.petState.setState(state);
-    if (this.lastRuleState !== state) {
-      this.lastRuleState = state;
-      this.onStateChange?.(state);
-    }
   }
 
   stop(): void {
@@ -76,6 +81,6 @@ export class PetRulesService {
       clearInterval(this.intervalId);
       this.intervalId = undefined;
     }
-    this.onStateChange = undefined;
+    this.onRuleTriggered = undefined;
   }
 }
