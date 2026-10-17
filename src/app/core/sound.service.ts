@@ -1,14 +1,15 @@
 import { Injectable } from '@angular/core';
 import { load } from '@tauri-apps/plugin-store';
 
-export type SoundEvent = 'click' | 'taskComplete' | 'timerComplete' | 'reminder' | 'greeting';
+export type SoundEvent = 'click' | 'taskComplete' | 'timerComplete' | 'reminder' | 'greeting' | 'health';
 
 const SOUND_FILES: Record<SoundEvent, string> = {
   click: 'assets/sounds/click.ogg',
   taskComplete: 'assets/sounds/confirm.ogg',
   timerComplete: 'assets/sounds/complete.ogg',
   reminder: 'assets/sounds/notify.ogg',
-  greeting: 'assets/sounds/pop.ogg'
+  greeting: 'assets/sounds/pop.ogg',
+  health: 'assets/sounds/pop.ogg'
 };
 
 @Injectable({ providedIn: 'root' })

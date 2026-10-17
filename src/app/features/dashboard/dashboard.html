@@ -11,6 +11,7 @@
     <button [class.active]="activeTab() === 'tasks'" (click)="selectTab('tasks')">Tasks</button>
     <button [class.active]="activeTab() === 'timers'" (click)="selectTab('timers')">Timers</button>
     <button [class.active]="activeTab() === 'reminders'" (click)="selectTab('reminders')">Reminders</button>
+    <button [class.active]="activeTab() === 'health'" (click)="selectTab('health')">Health</button>
     <button [class.active]="activeTab() === 'settings'" (click)="selectTab('settings')">Settings</button>
   </nav>
 
@@ -19,6 +20,7 @@
       @case ('tasks') { <app-task-list /> }
       @case ('timers') { <app-timer /> }
       @case ('reminders') { <app-reminders /> }
+      @case ('health') { <app-health-settings /> }
       @case ('settings') { <app-settings /> }
     }
   </section>

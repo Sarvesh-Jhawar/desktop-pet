@@ -26,11 +26,148 @@ canvas {
   animation: pet-idle 3.6s ease-in-out infinite;
 }
 
+.quick-action-wheel {
+  position: absolute;
+  z-index: 100000;
+  width: min(240px, calc(100vw - 8px), calc(100vh - 8px));
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  background: rgba(34, 39, 54, 0.94);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(8px);
+}
+
+.quick-action {
+  position: absolute;
+  width: 34%;
+  min-height: 42px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 16px;
+  background: #fff;
+  color: #252a38;
+  font: 600 clamp(9px, 3.4vw, 12px) / 1.15 Arial, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transform: translate(-50%, -50%);
+}
+
+.quick-action:hover,
+.quick-action:focus-visible,
+.quick-task-form button:hover,
+.quick-task-form button:focus-visible {
+  background: #dff5ff;
+  outline: 2px solid #60c7f2;
+  outline-offset: 1px;
+}
+
+.start-focus {
+  left: 50%;
+  top: 10%;
+}
+
+.add-task {
+  left: 83%;
+  top: 32%;
+}
+
+.motivate-action {
+  left: 17%;
+  top: 32%;
+}
+
+.pet-action {
+  left: 83%;
+  top: 68%;
+}
+
+.dashboard-action {
+  left: 50%;
+  top: 90%;
+}
+
+.sleep-action {
+  left: 17%;
+  top: 68%;
+}
+
+.quick-action-close {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #596176;
+  color: #fff;
+  font-size: 23px;
+  line-height: 1;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+
+.quick-action-close:hover,
+.quick-action-close:focus-visible {
+  background: #737e98;
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.quick-task-form {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: 78%;
+  flex-direction: column;
+  gap: 8px;
+  color: #fff;
+  font: 600 12px Arial, sans-serif;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.quick-task-form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #c6cbd7;
+  border-radius: 8px;
+  font: 12px Arial, sans-serif;
+}
+
+.quick-task-form-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.quick-task-form button {
+  min-width: 54px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  color: #252a38;
+  font: 600 11px Arial, sans-serif;
+  cursor: pointer;
+}
+
+.quick-task-form button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .speech-bubble {
   position: absolute;
 
   top: 8px;
-  left: 125px;
+  left: 50%;
 
   transform: translateX(-50%);
 
@@ -50,7 +187,11 @@ canvas {
   font-weight: 600;
   line-height: 18px;
 
-  white-space: nowrap;
+  box-sizing: border-box;
+  max-width: calc(100% - 16px);
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
 
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
 
@@ -97,9 +238,9 @@ canvas {
 
 @media (prefers-reduced-motion: reduce) {
   canvas,
+  .quick-action,
   .speech-bubble {
     animation: none;
     transition: none;
   }
 }
-

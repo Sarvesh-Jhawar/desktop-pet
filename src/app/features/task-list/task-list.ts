@@ -1,11 +1,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnDestroy,
   OnInit,
   inject,
   signal
 } from '@angular/core';
-import { emit } from '@tauri-apps/api/event';
+import { emit, listen } from '@tauri-apps/api/event';
 import {
   isPermissionGranted,
   requestPermission,
@@ -22,15 +23,27 @@ import { Task } from '../../shared/task.model';
   templateUrl: './task-list.html',
   styleUrl: './task-list.css',
 })
-export class TaskList implements OnInit {
+export class TaskList implements OnInit, OnDestroy {
   private readonly taskStore = inject(TaskStoreService);
+  private unlistenTasksUpdated?: () => void;
 
   tasks = signal<Task[]>([]);
   newTitle = '';
   newPriority: Task['priority'] = 'medium';
 
   async ngOnInit(): Promise<void> {
+    if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+      this.unlistenTasksUpdated = await listen('tasks-updated', () => {
+        void this.refresh().catch(error => {
+          console.error('Failed to refresh tasks after a cross-window update:', error);
+        });
+      });
+    }
     await this.refresh();
+  }
+
+  ngOnDestroy(): void {
+    this.unlistenTasksUpdated?.();
   }
 
   async refresh(): Promise<void> {
@@ -44,6 +57,7 @@ export class TaskList implements OnInit {
       title: this.newTitle.trim(),
       priority: this.newPriority
     });
+    await emit('tasks-updated');
     this.newTitle = '';
     await this.refresh();
   }
@@ -87,6 +101,7 @@ export class TaskList implements OnInit {
 
   async deleteTask(task: Task): Promise<void> {
     await this.taskStore.deleteTask(task.id);
+    await emit('tasks-updated');
     await this.refresh();
   }
 }

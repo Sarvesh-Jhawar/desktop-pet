@@ -1,5 +1,114 @@
 <div class="pet-container">
 
+  @if (health.activeHabit(); as habit) {
+    <aside
+      class="health-banner"
+      [attr.data-habit]="habit.kind"
+      [attr.aria-label]="habit.title"
+      role="region"
+    >
+      <span class="health-icon" aria-hidden="true">{{ habit.icon }}</span>
+      <div class="health-banner-copy">
+        <strong>{{ habit.title }}</strong>
+        @if (habit.kind === 'stretch') {
+          <span class="health-time">Stretch: {{ formatHealthTime(habit.remainingSeconds) }}</span>
+          <progress
+            aria-label="Stretch exercise progress"
+            [max]="habit.durationSeconds"
+            [value]="habit.durationSeconds - habit.remainingSeconds"
+          ></progress>
+        } @else {
+          <span class="health-time">Dismisses in {{ formatHealthTime(habit.remainingSeconds) }}</span>
+        }
+      </div>
+      @if (habit.kind === 'eye-rest') {
+        <button
+          type="button"
+          class="health-action"
+          aria-label="Skip the eye rest"
+          (click)="health.skipEyeRest()"
+        >Skip</button>
+      } @else {
+        <button
+          type="button"
+          class="health-action"
+          [attr.aria-label]="'Mark ' + habit.title + ' complete'"
+          (click)="health.completeActiveHabit()"
+        >Done</button>
+      }
+    </aside>
+  } @else if (health.microBreakActive()) {
+    <aside class="health-banner break-banner" role="region" aria-label="Short break activity">
+      <span class="health-icon" aria-hidden="true">🧘</span>
+      <div class="health-banner-copy">
+        <strong>Short break</strong>
+        <span>{{ health.microBreakExercise()?.name }}</span>
+        <span class="health-time">Break ends in {{ formatHealthTime(health.microBreakRemainingSeconds()) }}</span>
+        <progress
+          aria-label="Short break progress"
+          max="300"
+          [value]="300 - health.microBreakRemainingSeconds()"
+        ></progress>
+      </div>
+    </aside>
+  }
+
+  @if (quickActionsVisible()) {
+    <div
+      #quickActionWheel
+      class="quick-action-wheel"
+      role="dialog"
+      aria-label="Milly quick actions"
+      [style.left.px]="quickActionPosition().x"
+      [style.top.px]="quickActionPosition().y"
+      (contextmenu)="$event.preventDefault()"
+    >
+      @if (quickTaskMode()) {
+        <form class="quick-task-form" (submit)="addQuickTask($event)">
+          <label for="quick-task-title">Quick task</label>
+          <input
+            id="quick-task-title"
+            name="quickTaskTitle"
+            type="text"
+            maxlength="120"
+            placeholder="What needs doing?"
+            autocomplete="off"
+            [(ngModel)]="quickTaskTitle"
+          />
+          <div class="quick-task-form-actions">
+            <button type="button" (click)="closeQuickActions()">Cancel</button>
+            <button type="submit" [disabled]="!quickTaskTitle.trim()">Add</button>
+          </div>
+        </form>
+      } @else {
+        <button class="quick-action start-focus" (click)="startQuickFocusTimer()">
+          Start 25-min
+        </button>
+        <button class="quick-action motivate-action" (click)="motivate()">
+          Motivate me
+        </button>
+        <button class="quick-action add-task" (click)="beginQuickTask()">
+          Add quick task
+        </button>
+        <button class="quick-action pet-action" (click)="feedPet()">
+          Feed / Pet
+        </button>
+        <button class="quick-action dashboard-action" (click)="openDashboardFromWheel()">
+          Dashboard
+        </button>
+        <button class="quick-action sleep-action" (click)="putPetToSleep()">
+          Put to sleep
+        </button>
+      }
+      <button
+        class="quick-action-close"
+        type="button"
+        aria-label="Close quick actions"
+        (click)="closeQuickActions()"
+      >×</button>
+    </div>
+  }
+
   <div
     class="speech-bubble"
     [class.visible]="bubbleVisible()"
@@ -12,6 +121,8 @@
     #petCanvas
     width="250"
     height="250"
+    aria-label="Milly desktop pet"
+    tabindex="0"
   ></canvas>
 
 </div>

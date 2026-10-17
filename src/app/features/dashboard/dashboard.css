@@ -4,8 +4,8 @@
 }
 
 .dashboard-shell {
-  background: #f5f2ea;
-  color: #263238;
+  background: var(--bg-base);
+  color: var(--text-primary);
   min-height: 100vh;
   padding: 28px 32px;
 }
@@ -19,7 +19,7 @@
 }
 
 .eyebrow {
-  color: #8c5a36;
+  color: var(--text-secondary);
   font-size: 12px;
   letter-spacing: 0.08em;
   margin: 0 0 6px;
@@ -32,7 +32,7 @@ h1 {
 }
 
 .status-dot {
-  color: #477257;
+  color: var(--success);
   font-size: 13px;
 }
 
@@ -43,7 +43,7 @@ h1 {
 }
 
 .dashboard-tabs {
-  border-bottom: 1px solid #d8d0c1;
+  border-bottom: 1px solid var(--border-subtle);
   display: flex;
   gap: 6px;
 }
@@ -52,22 +52,27 @@ h1 {
   background: transparent;
   border: 0;
   border-bottom: 3px solid transparent;
-  color: #66706d;
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 15px;
   padding: 11px 16px;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .dashboard-tabs button.active {
-  border-bottom-color: #b9683b;
-  color: #263238;
+  border-bottom-color: var(--accent-end);
+  color: var(--text-primary);
   font-weight: 700;
 }
 
+.dashboard-tabs button:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
 .dashboard-content {
-  background: #fffdf8;
   min-height: 470px;
-  padding: 20px;
+  padding: 20px 0;
 }
 
 @media (max-width: 640px) {

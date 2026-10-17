@@ -1,6 +1,5 @@
 .timer-panel {
-  padding: 16px;
-  font-family: sans-serif;
+  padding: 22px;
 }
 
 header,
@@ -25,14 +24,14 @@ p {
 
 header span,
 .status {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
 .add-timer {
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--border-subtle);
   margin: 12px 0;
-  padding-bottom: 12px;
+  padding: 12px 0 18px;
 }
 
 .add-timer h3 {
@@ -46,23 +45,44 @@ header span,
 
 label {
   display: grid;
-  font-size: 11px;
-  gap: 3px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  gap: 5px;
 }
 
 input {
   box-sizing: border-box;
-  padding: 5px;
-  width: 58px;
+  min-height: 40px;
+  padding: 8px 10px;
+  width: 72px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-solid);
+  color: var(--text-primary);
+  font: inherit;
 }
 
-input:first-child {
-  width: 110px;
+label:first-child input {
+  width: 160px;
 }
 
 button {
   cursor: pointer;
-  padding: 6px 10px;
+}
+
+.timer-actions button:not(.btn-primary),
+.remove {
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.timer-actions button:not(.btn-primary):hover,
+.remove:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
 }
 
 button:disabled {
@@ -76,13 +96,14 @@ button:disabled {
 }
 
 .timer-card {
-  border: 1px solid #d7d7d7;
-  border-radius: 6px;
-  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .timer-card.running {
-  border-color: #3c78d8;
+  border-color: var(--accent-end);
 }
 
 .timer-card h3 {
@@ -92,7 +113,8 @@ button:disabled {
 .clock {
   font-size: 32px;
   font-variant-numeric: tabular-nums;
-  font-weight: bold;
+  font-family: var(--font-heading);
+  font-weight: 600;
   margin: 7px 0 2px;
 }
 
@@ -107,15 +129,32 @@ button:disabled {
 
 .remove {
   font-size: 11px;
+  color: var(--text-secondary);
 }
 
 .validation {
-  color: #a33;
+  color: var(--danger);
   font-size: 12px;
   margin-top: 7px;
 }
 
 .empty {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 13px;
+}
+
+input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent-end);
+  outline-offset: 2px;
+}
+
+@media (max-width: 540px) {
+  .timer-panel {
+    padding: 16px;
+  }
+
+  .add-fields {
+    align-items: end;
+  }
 }

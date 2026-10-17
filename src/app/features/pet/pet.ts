@@ -8,6 +8,7 @@ import {
   inject,
   signal
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
 import {
   Rive,
@@ -22,6 +23,8 @@ import {
   emit,
   listen
 } from '@tauri-apps/api/event';
+
+import { invoke } from '@tauri-apps/api/core';
 
 import {
   LogicalSize,
@@ -42,6 +45,11 @@ import { DialogueService } from '../../core/dialogue.service';
 import { SoundService } from '../../core/sound.service';
 import { SpeechService } from '../../core/speech.service';
 import { TaskStoreService } from '../../core/task-store.service';
+import {
+  ActiveHealthHabit,
+  HealthHabitService,
+  HealthHabitTrigger
+} from '../../core/health-habit.service';
 import { Task } from '../../shared/task.model';
 
 type PetSize = 'small' | 'medium' | 'large';
@@ -53,14 +61,23 @@ const SIZE_MAP: Record<PetSize, number> = {
 };
 
 const SPEECH_BUBBLE_SYNC_DELAY_MS = 180;
+const MOTIVATIONAL_MESSAGES = [
+  'You’ve got this, Sarvesh! Every small step is progress.',
+  'Believe in yourself. You are capable of more than you think.',
+  'Take it one step at a time. You’re doing great!',
+  'You don’t have to be perfect. Just keep moving forward.',
+  'Your effort today is building something wonderful for tomorrow.',
+  'A little progress is still progress. Keep going!'
+];
 
 
 @Component({
   selector: 'app-pet',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
+  imports: [FormsModule],
   templateUrl: './pet.html',
-  styleUrl: './pet.css'
+  styleUrls: ['./pet.css', './health-banner.css']
 })
 export class Pet implements OnInit, OnDestroy {
 
@@ -79,6 +96,8 @@ export class Pet implements OnInit, OnDestroy {
   private readonly speech = inject(SpeechService);
 
   private readonly taskStore = inject(TaskStoreService);
+
+  readonly health = inject(HealthHabitService);
 
   private readonly isTauriRuntime =
     Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
@@ -101,6 +120,17 @@ export class Pet implements OnInit, OnDestroy {
 
   @ViewChild('petCanvas', { static: true })
   canvasRef!: ElementRef<HTMLCanvasElement>;
+
+  @ViewChild('quickActionWheel')
+  quickActionWheelRef?: ElementRef<HTMLDivElement>;
+
+  quickActionsVisible = signal(false);
+
+  quickTaskMode = signal(false);
+
+  quickTaskTitle = '';
+
+  quickActionPosition = signal({ x: 125, y: 125 });
 
 
   /*
@@ -182,6 +212,28 @@ export class Pet implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
 
     if (this.isTauriRuntime) {
+      this.health.onHabitStarted = habit => this.onHealthHabitStarted(habit);
+      this.health.onHabitCompleted = (habit, completed) =>
+        this.onHealthHabitCompleted(habit, completed);
+      this.health.onMicroBreakFinished = (exercise, completed) => {
+        if (!completed) {
+          this.petState.resetToIdle();
+          this.petRules.setTemporaryOverride(false);
+          return;
+        }
+        this.petState.fireHealthTrigger('triggerCelebrate');
+        this.petState.setState('celebrating');
+        if (this.health.settings().healthChimesEnabled) this.sound.play('health');
+        void this.enqueueSpeech(
+          `Your break is over. Nice work with ${exercise.name.toLowerCase()}!`,
+          3500
+        );
+        setTimeout(() => {
+          this.petState.resetToIdle();
+          this.petRules.setTemporaryOverride(false);
+        }, 3500);
+      };
+
       this.unlistenPetFocus = await getCurrentWindow().onFocusChanged(
         ({ payload: focused }) => {
           this.petFocused = focused;
@@ -194,6 +246,11 @@ export class Pet implements OnInit, OnDestroy {
       );
 
       await this.sound.init();
+      try {
+        await this.health.start();
+      } catch (error) {
+        console.error('Health reminders could not be started:', error);
+      }
       this.unlistenSoundsToggled = await listen<boolean>(
         'sounds-toggled',
         event => this.sound.setEnabled(event.payload)
@@ -388,6 +445,11 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     const canvas =
       this.canvasRef.nativeElement;
 
+    canvas.addEventListener(
+      'contextmenu',
+      this.onContextMenu
+    );
+
 
     canvas.addEventListener(
       'mousedown',
@@ -404,6 +466,16 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     window.addEventListener(
       'mouseup',
       this.onMouseUp
+    );
+
+    window.addEventListener(
+      'pointerdown',
+      this.onGlobalPointerDown
+    );
+
+    window.addEventListener(
+      'keydown',
+      this.onQuickActionsKeyDown
     );
 
 
@@ -959,11 +1031,163 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     event: MouseEvent
   ): void => {
 
+    if (event.button !== 0) {
+      this.mouseDownPos = null;
+      return;
+    }
+
+    if (this.quickActionsVisible()) {
+      this.closeQuickActions();
+    }
+
     this.mouseDownPos = {
       x: event.clientX,
       y: event.clientY
     };
   };
+
+  private onContextMenu = (event: MouseEvent): void => {
+    event.preventDefault();
+    this.mouseDownPos = null;
+    this.openQuickActionsAt(event.clientX, event.clientY);
+  };
+
+  private openQuickActionsAt(clientX: number, clientY: number): void {
+    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+    const diameter = Math.min(
+      240,
+      Math.max(110, window.innerWidth - 8),
+      Math.max(110, window.innerHeight - 8)
+    );
+    const radius = diameter / 2;
+    const x = Math.min(
+      Math.max(clientX - rect.left, radius + 4),
+      rect.width - radius - 4
+    );
+    const y = Math.min(
+      Math.max(clientY - rect.top, radius + 4),
+      rect.height - radius - 4
+    );
+
+    this.quickTaskMode.set(false);
+    this.quickTaskTitle = '';
+    this.quickActionPosition.set({ x, y });
+    this.quickActionsVisible.set(true);
+    setTimeout(() => {
+      this.quickActionWheelRef?.nativeElement.querySelector('button')?.focus();
+    });
+  }
+
+  closeQuickActions(): void {
+    this.quickActionsVisible.set(false);
+    this.quickTaskMode.set(false);
+    this.quickTaskTitle = '';
+  }
+
+  private onGlobalPointerDown = (event: PointerEvent): void => {
+    if (!this.quickActionsVisible()) return;
+    const target = event.target;
+    if (target instanceof Node && this.quickActionWheelRef?.nativeElement.contains(target)) {
+      return;
+    }
+    this.closeQuickActions();
+  };
+
+  private onQuickActionsKeyDown = (event: KeyboardEvent): void => {
+    if (
+      !this.quickActionsVisible() &&
+      (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) &&
+      event.target === this.canvasRef.nativeElement
+    ) {
+      event.preventDefault();
+      const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+      this.openQuickActionsAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return;
+    }
+
+    if (event.key === 'Escape' && this.quickActionsVisible()) {
+      this.closeQuickActions();
+    }
+  };
+
+  async startQuickFocusTimer(): Promise<void> {
+    const focusDuration = 25 * 60;
+    let timer = this.timerService.getState().find(item => item.duration === focusDuration);
+    if (!timer) {
+      this.timerService.add('Focus', focusDuration);
+      timer = this.timerService.getState().find(item => item.duration === focusDuration);
+    }
+
+    if (!timer) {
+      const error = new Error('Could not create the 25-minute focus timer.');
+      console.error(error);
+      this.showBubble('I could not start the focus timer. Please try again.', 3000);
+      this.closeQuickActions();
+      return;
+    }
+
+    this.timerService.start(timer.id);
+    this.closeQuickActions();
+    const message = 'Your 25-minute focus timer has started. Let’s get started!';
+    void this.enqueueSpeech(message, 3500);
+  }
+
+  beginQuickTask(): void {
+    this.quickTaskMode.set(true);
+    this.quickTaskTitle = '';
+  }
+
+  async addQuickTask(event: Event): Promise<void> {
+    event.preventDefault();
+    const title = this.quickTaskTitle.trim();
+    if (!title) return;
+
+    try {
+      await this.taskStore.createTask({ title, priority: 'medium' });
+      try {
+        await emit('tasks-updated');
+      } catch (error) {
+        console.error('Task was saved, but other windows were not notified:', error);
+      }
+      this.closeQuickActions();
+      this.showBubble(`Added task: ${title}`, 2500);
+    } catch (error) {
+      console.error('Failed to add quick task:', error);
+      this.showBubble('I could not add that task. Please try again.', 3000);
+      this.closeQuickActions();
+    }
+  }
+
+  async openDashboardFromWheel(): Promise<void> {
+    try {
+      await invoke('open_dashboard');
+      this.closeQuickActions();
+    } catch (error) {
+      console.error('Failed to open the Dashboard:', error);
+      this.showBubble('I could not open the Dashboard. Please try again.', 3000);
+      this.closeQuickActions();
+    }
+  }
+
+  putPetToSleep(): void {
+    this.closeQuickActions();
+    this.petRules.setTemporaryOverride(true);
+    this.petState.setState('sleeping');
+    void this.enqueueSpeech('I’m taking a little nap. Click me when you want me back!', 3500);
+  }
+
+  feedPet(): void {
+    this.closeQuickActions();
+    this.onPetClick();
+  }
+
+  motivate(): void {
+    const message = MOTIVATIONAL_MESSAGES[
+      Math.floor(Math.random() * MOTIVATIONAL_MESSAGES.length)
+    ];
+    this.closeQuickActions();
+    void this.enqueueSpeech(message, 4000);
+  }
 
 
   /*
@@ -1030,6 +1254,11 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     event: MouseEvent
   ): void => {
 
+    if (event.button !== 0) {
+      this.mouseDownPos = null;
+      return;
+    }
+
     if (!this.mouseDownPos) {
       return;
     }
@@ -1071,6 +1300,16 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
    */
 
   private onPetClick(): void {
+
+    if (this.health.activeHabit()) {
+      this.health.completeActiveHabitFromPet();
+      return;
+    }
+
+    if (this.petState.getState() === 'sleeping') {
+      this.petRules.setTemporaryOverride(false);
+      this.petState.resetToIdle();
+    }
 
     console.log(
       'PET CLICKED'
@@ -1151,6 +1390,34 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   }
 
   private async onTimerCompleted(timer: TimerState): Promise<void> {
+    if (
+      timer.duration === 25 * 60 &&
+      this.health.settings().microBreaksEnabled
+    ) {
+      const exercise = this.health.startMicroBreak();
+      if (exercise) {
+        let breakTimer = this.timerService.getState().find(item => item.duration === 5 * 60);
+        if (!breakTimer) {
+          this.timerService.add('Short break', 5 * 60);
+          breakTimer = this.timerService.getState().find(item => item.duration === 5 * 60);
+        }
+        if (breakTimer) {
+          this.timerService.start(breakTimer.id);
+          const win = getCurrentWindow();
+          await win.show();
+          await win.setFocus();
+          return;
+        }
+        console.error('Could not start the five-minute micro-break timer.');
+        this.health.finishMicroBreak(false);
+      }
+    }
+
+    if (timer.duration === 5 * 60 && this.health.microBreakActive()) {
+      this.health.finishMicroBreak();
+      return;
+    }
+
     const win = getCurrentWindow();
     await win.show();
     await win.setFocus();
@@ -1167,6 +1434,64 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       this.petState.resetToIdle();
       this.petRules.setTemporaryOverride(false);
     }, 3500);
+  }
+
+  private onHealthHabitStarted(habit: ActiveHealthHabit): void {
+    const visualKind: 'eye-rest' | 'hydration' | 'posture' = habit.kind === 'stretch'
+      ? habit.countsAs === 'hydration' ? 'hydration' : 'posture'
+      : habit.kind;
+    const triggerByKind: Record<'eye-rest' | 'hydration' | 'posture', HealthHabitTrigger> = {
+      'eye-rest': 'triggerEyeRest',
+      hydration: 'triggerHydrate',
+      posture: 'triggerPosture'
+    };
+
+    this.petRules.setTemporaryOverride(true);
+    this.petState.setState(visualKind);
+    this.petState.fireHealthTrigger(triggerByKind[visualKind]);
+    if (this.health.settings().healthChimesEnabled) this.sound.play('health');
+    void getCurrentWindow().show().catch(error => {
+      console.error('Failed to show Milly for a health reminder:', error);
+    });
+    void this.enqueueSpeech(habit.message, habit.durationSeconds * 1000);
+  }
+
+  private onHealthHabitCompleted(habit: ActiveHealthHabit, completed: boolean): void {
+    if (!completed) {
+      this.petState.resetToIdle();
+      if (habit.kind !== 'stretch') this.petRules.setTemporaryOverride(false);
+      return;
+    }
+
+    this.petState.fireHealthTrigger('triggerCelebrate');
+    this.petState.setState('celebrating');
+    if (this.health.settings().healthChimesEnabled) this.sound.play('health');
+    const completionMessage = habit.countsAs === 'hydration'
+      ? 'Wonderful! Thanks for refilling your water.'
+      : habit.kind === 'eye-rest'
+      ? 'Lovely! Your eyes will thank you for that little rest.'
+      : habit.kind === 'hydration'
+        ? 'Wonderful! Thanks for taking a moment to hydrate.'
+        : habit.kind === 'posture'
+          ? 'Great stretch! Your shoulders are feeling better already.'
+          : `Nice work! ${habit.title} complete.`;
+    void this.enqueueSpeech(completionMessage, 3500);
+
+    if (habit.kind !== 'stretch') {
+      setTimeout(() => {
+        this.petState.resetToIdle();
+        this.petRules.setTemporaryOverride(false);
+      }, 3500);
+    } else {
+      setTimeout(() => this.petState.resetToIdle(), 3500);
+    }
+  }
+
+  formatHealthTime(seconds: number): string {
+    const wholeSeconds = Math.max(0, Math.ceil(seconds));
+    const minutes = Math.floor(wholeSeconds / 60).toString().padStart(2, '0');
+    const remainder = (wholeSeconds % 60).toString().padStart(2, '0');
+    return `${minutes}:${remainder}`;
   }
 
   private async onReminderDue(reminder: Reminder): Promise<void> {
@@ -1206,6 +1531,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       this.onMouseDown
     );
 
+    canvas.removeEventListener(
+      'contextmenu',
+      this.onContextMenu
+    );
 
     window.removeEventListener(
       'mousemove',
@@ -1218,6 +1547,15 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       this.onMouseUp
     );
 
+    window.removeEventListener(
+      'pointerdown',
+      this.onGlobalPointerDown
+    );
+
+    window.removeEventListener(
+      'keydown',
+      this.onQuickActionsKeyDown
+    );
 
     if (this.bubbleTimeout) {
 
@@ -1256,6 +1594,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.unlistenTimerRequestState?.();
     this.unlistenSoundsToggled?.();
     this.unlistenPetFocus?.();
+    this.health.stop();
+    this.health.onHabitStarted = undefined;
+    this.health.onHabitCompleted = undefined;
+    this.health.onMicroBreakFinished = undefined;
     this.timerService.onComplete = undefined;
     this.reminderScheduler.onReminderDue = undefined;
     this.reminderScheduler.stop();

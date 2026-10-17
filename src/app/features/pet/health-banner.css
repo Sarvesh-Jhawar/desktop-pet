@@ -1,0 +1,101 @@
+.health-banner {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  z-index: 100001;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  box-sizing: border-box;
+  width: min(340px, calc(100vw - 12px));
+  min-height: 68px;
+  padding: 10px 12px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(67, 109, 146, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.97);
+  color: #263548;
+  box-shadow: 0 6px 22px rgba(22, 38, 59, 0.2);
+  animation: health-banner-enter 220ms ease-out both;
+  pointer-events: auto;
+}
+
+.health-banner[data-habit='eye-rest'] {
+  border-color: #72aeda;
+}
+
+.health-banner[data-habit='hydration'] {
+  border-color: #62b8d9;
+}
+
+.health-banner[data-habit='posture'],
+.break-banner {
+  border-color: #dbb46c;
+}
+
+.health-icon {
+  flex: 0 0 auto;
+  font-size: 23px;
+}
+
+.health-banner-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 3px;
+  font: 12px / 1.3 Arial, sans-serif;
+}
+
+.health-banner-copy strong {
+  font-size: 13px;
+}
+
+.health-banner-copy > span:not(.health-time) {
+  color: #4f5d6c;
+}
+
+.health-time {
+  color: #68788a;
+  font-size: 11px;
+}
+
+.health-banner progress {
+  width: 100%;
+  height: 5px;
+  accent-color: #478ebc;
+}
+
+.health-action {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 9px;
+  background: #e7f2fa;
+  color: #214966;
+  font: 600 11px Arial, sans-serif;
+  cursor: pointer;
+}
+
+.health-action:hover,
+.health-action:focus-visible {
+  background: #d5eaf8;
+  outline: 2px solid #478ebc;
+  outline-offset: 2px;
+}
+
+@keyframes health-banner-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 5px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .health-banner {
+    animation: none;
+  }
+}

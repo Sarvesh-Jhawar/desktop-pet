@@ -9,11 +9,41 @@ use tauri::{
 
 mod speech;
 
+#[tauri::command]
+fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
+    let dashboard = if let Some(window) = app.get_webview_window("dashboard") {
+        window
+    } else {
+        WebviewWindowBuilder::new(
+            &app,
+            "dashboard",
+            WebviewUrl::App("index.html#/dashboard".into()),
+        )
+        .title("Milly Dashboard")
+        .inner_size(980.0, 720.0)
+        .resizable(true)
+        .decorations(true)
+        .visible(true)
+        .build()
+        .map_err(|error| format!("Failed to create the Dashboard window: {error}"))?
+    };
+
+    dashboard
+        .show()
+        .map_err(|error| format!("Failed to show the Dashboard window: {error}"))?;
+    dashboard
+        .set_focus()
+        .map_err(|error| format!("Failed to focus the Dashboard window: {error}"))?;
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
         .manage(speech::SpeechEngine::default())
         .invoke_handler(tauri::generate_handler![
+            open_dashboard,
             speech::speech_speak,
             speech::speech_stop,
             speech::speech_is_speaking

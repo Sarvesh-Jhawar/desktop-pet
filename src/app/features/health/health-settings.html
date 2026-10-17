@@ -1,0 +1,126 @@
+<section class="health-card" aria-labelledby="health-heading">
+  <header class="health-header">
+    <div>
+      <p class="eyebrow">Small habits, healthier work</p>
+      <h2 id="health-heading">Health</h2>
+    </div>
+    <span class="today-label">Today</span>
+  </header>
+
+  @if (loading()) {
+    <p class="status-message" role="status">Loading health settings…</p>
+  } @else {
+    <div class="health-layout">
+      <section class="settings-list" aria-label="Health reminders">
+        <label class="health-toggle">
+          <span>
+            <strong>20-20-20 Eye Rest Companion</strong>
+            <small>Rest your eyes every 20 minutes of active desk time</small>
+          </span>
+          <input
+            type="checkbox"
+            [checked]="health.settings().eyeRestEnabled"
+            (change)="setToggle('eyeRestEnabled', $event)"
+          />
+        </label>
+
+        <label class="health-toggle">
+          <span>
+            <strong>Hydration Reminders</strong>
+            <small>Take a water break throughout your workday</small>
+          </span>
+          <input
+            type="checkbox"
+            [checked]="health.settings().hydrationEnabled"
+            (change)="setToggle('hydrationEnabled', $event)"
+          />
+        </label>
+        <label class="cadence-control">
+          <span>Water frequency</span>
+          <select
+            aria-label="Water reminder frequency"
+            [value]="health.settings().hydrationIntervalMinutes"
+            (change)="setCadence('hydrationIntervalMinutes', $event)"
+          >
+            <option value="30">30 minutes</option>
+            <option value="45">45 minutes</option>
+            <option value="60">60 minutes</option>
+          </select>
+        </label>
+
+        <label class="health-toggle">
+          <span>
+            <strong>Posture Checkups</strong>
+            <small>Gentle reminders to roll your shoulders back</small>
+          </span>
+          <input
+            type="checkbox"
+            [checked]="health.settings().postureEnabled"
+            (change)="setToggle('postureEnabled', $event)"
+          />
+        </label>
+        <label class="cadence-control">
+          <span>Posture frequency</span>
+          <select
+            aria-label="Posture reminder frequency"
+            [value]="health.settings().postureIntervalMinutes"
+            (change)="setCadence('postureIntervalMinutes', $event)"
+          >
+            <option value="45">45 minutes</option>
+            <option value="60">60 minutes</option>
+            <option value="90">90 minutes</option>
+          </select>
+        </label>
+
+        <label class="health-toggle">
+          <span>
+            <strong>Micro-Break Stretches</strong>
+            <small>Quick movement ideas during five-minute breaks</small>
+          </span>
+          <input
+            type="checkbox"
+            [checked]="health.settings().microBreaksEnabled"
+            (change)="setToggle('microBreaksEnabled', $event)"
+          />
+        </label>
+
+        <label class="health-toggle sound-toggle">
+          <span>
+            <strong>Soft health audio chimes</strong>
+            <small>Uses Milly’s existing sound setting</small>
+          </span>
+          <input
+            type="checkbox"
+            [checked]="health.settings().healthChimesEnabled"
+            (change)="setToggle('healthChimesEnabled', $event)"
+          />
+        </label>
+      </section>
+
+      <section class="daily-progress" aria-labelledby="progress-heading">
+        <h3 id="progress-heading">Daily progress</h3>
+        <div class="progress-pills">
+          <div class="progress-pill" aria-label="Glasses of water today">
+            <span aria-hidden="true">💧</span>
+            <strong>{{ health.dailyCounts().hydration }}/8</strong>
+            <small>glasses</small>
+          </div>
+          <div class="progress-pill" aria-label="Completed eye rests today">
+            <span aria-hidden="true">👀</span>
+            <strong>{{ health.dailyCounts().eyeRests }}</strong>
+            <small>eye rests</small>
+          </div>
+          <div class="progress-pill" aria-label="Completed stretches today">
+            <span aria-hidden="true">🧘</span>
+            <strong>{{ health.dailyCounts().stretches }}</strong>
+            <small>stretches</small>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    @if (errorMessage()) {
+      <p class="error-message" role="alert">{{ errorMessage() }}</p>
+    }
+  }
+</section>
