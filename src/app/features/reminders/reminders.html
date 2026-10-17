@@ -1,4 +1,4 @@
-<div class="reminders-panel">
+<div class="reminders-panel glass-panel">
   <h2>Reminders</h2>
 
   <div class="presets" aria-label="Wellness presets">
@@ -17,11 +17,11 @@
       <option [ngValue]="60">Every hour</option>
       <option [ngValue]="120">Every 2 hours</option>
     </select>
-    <button type="button" (click)="add()">Add</button>
+    <button class="btn-primary" type="button" (click)="add()">Add</button>
   </div>
 
   <ul>
-    @for (reminder of reminders; track reminder.id) {
+    @for (reminder of reminders(); track reminder.id) {
       <li>
         <span class="title">{{ reminder.title }}</span>
         @if (reminder.repeatIntervalMinutes) {

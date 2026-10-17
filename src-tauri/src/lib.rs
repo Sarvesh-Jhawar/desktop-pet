@@ -7,9 +7,17 @@ use tauri::{
     WindowEvent,
 };
 
+mod speech;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        .manage(speech::SpeechEngine::default())
+        .invoke_handler(tauri::generate_handler![
+            speech::speech_speak,
+            speech::speech_stop,
+            speech::speech_is_speaking
+        ])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -96,6 +104,12 @@ pub fn run() {
 ))
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_notification::init())
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("error while running tauri application");
+
+    app.run(|app_handle, event| {
+        if let tauri::RunEvent::Exit = event {
+            app_handle.state::<speech::SpeechEngine>().shutdown();
+        }
+    });
 }

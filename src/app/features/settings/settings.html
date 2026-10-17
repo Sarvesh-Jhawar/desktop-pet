@@ -1,4 +1,4 @@
-<main class="settings-panel">
+<main class="settings-panel glass-panel">
   <h1>Pet Settings</h1>
 
   <label class="setting-row">
@@ -19,29 +19,62 @@
     <span>Always on top</span>
   </label>
 
+  <label class="setting-row">
+    <input
+      type="checkbox"
+      [checked]="soundsEnabled()"
+      (change)="toggleSounds()"
+    />
+    <span>Sounds</span>
+  </label>
+
+  <section class="speech-controls" aria-labelledby="speech-heading">
+    <h2 id="speech-heading">Voice</h2>
+    <div class="speech-actions">
+      <button type="button" class="btn-primary" (click)="testVoice()">
+        Test Voice
+      </button>
+      <button type="button" (click)="stopVoice()">Stop</button>
+    </div>
+    @if (speechStatus()) {
+      <p class="speech-status" role="status">{{ speechStatus() }}</p>
+    }
+    @if (speech.errorMessage()) {
+      <p class="speech-error" role="alert">{{ speech.errorMessage() }}</p>
+    }
+  </section>
+
   <section class="size-controls" aria-labelledby="size-heading">
     <h2 id="size-heading">Pet Size</h2>
 
-    <button
-      [class.active]="currentSize() === 'small'"
-      (click)="setPetSize('small')"
-    >
-      Small
-    </button>
+    <div class="size-options" role="group" aria-labelledby="size-heading">
+      <button
+        type="button"
+        [class.btn-primary]="currentSize() === 'small'"
+        [attr.aria-pressed]="currentSize() === 'small'"
+        (click)="setPetSize('small')"
+      >
+        Small
+      </button>
 
-    <button
-      [class.active]="currentSize() === 'medium'"
-      (click)="setPetSize('medium')"
-    >
-      Medium
-    </button>
+      <button
+        type="button"
+        [class.btn-primary]="currentSize() === 'medium'"
+        [attr.aria-pressed]="currentSize() === 'medium'"
+        (click)="setPetSize('medium')"
+      >
+        Medium
+      </button>
 
-    <button
-      [class.active]="currentSize() === 'large'"
-      (click)="setPetSize('large')"
-    >
-      Large
-    </button>
+      <button
+        type="button"
+        [class.btn-primary]="currentSize() === 'large'"
+        [attr.aria-pressed]="currentSize() === 'large'"
+        (click)="setPetSize('large')"
+      >
+        Large
+      </button>
+    </div>
   </section>
 
   <p class="credit">Pet by Milly, via Rive Community (CC BY)</p>

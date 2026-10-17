@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { emit, listen } from '@tauri-apps/api/event';
 import { TimerState } from '../../core/timer.service';
@@ -11,38 +11,36 @@ import { TimerState } from '../../core/timer.service';
   styleUrl: './timer.css'
 })
 export class Timer implements OnInit, OnDestroy {
-  timers: TimerState[] = [];
+  timers = signal<TimerState[]>([]);
   newLabel = '';
   newHours = 0;
   newMinutes = 10;
   newSeconds = 0;
-  validationMessage = '';
+  validationMessage = signal('');
 
-  private readonly changeDetector = inject(ChangeDetectorRef);
   private unlisten?: () => void;
 
   async ngOnInit(): Promise<void> {
     this.unlisten = await listen<TimerState[]>('timer-tick', event => {
-      this.timers = event.payload;
-      this.changeDetector.markForCheck();
+      this.timers.set(event.payload);
     });
     await emit('timer-request-state', {});
   }
 
   async addTimer(): Promise<void> {
     const duration = this.toSeconds(this.newHours, this.newMinutes, this.newSeconds);
-    this.validationMessage = '';
+    this.validationMessage.set('');
 
     if (duration <= 0) {
-      this.validationMessage = 'Set a duration greater than zero.';
+      this.validationMessage.set('Set a duration greater than zero.');
       return;
     }
-    if (this.timers.some(timer => timer.duration === duration)) {
-      this.validationMessage = 'A timer with that duration already exists.';
+    if (this.timers().some(timer => timer.duration === duration)) {
+      this.validationMessage.set('A timer with that duration already exists.');
       return;
     }
 
-    const label = this.newLabel.trim() || `Timer ${this.timers.length + 1}`;
+    const label = this.newLabel.trim() || `Timer ${this.timers().length + 1}`;
     await emit('timer-command', { action: 'add', label, duration });
     this.newLabel = '';
     this.newHours = 0;

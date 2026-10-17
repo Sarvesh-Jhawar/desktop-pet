@@ -1,7 +1,7 @@
-<div class="timer-panel">
+<div class="timer-panel glass-panel">
   <header>
     <h2>Focus Timers</h2>
-    <span>{{ timers.length }} timers</span>
+    <span>{{ timers().length }} timers</span>
   </header>
 
   <section class="add-timer" aria-labelledby="add-timer-heading">
@@ -23,15 +23,15 @@
         Seconds
         <input type="number" [(ngModel)]="newSeconds" min="0" max="59" />
       </label>
-      <button type="button" (click)="addTimer()">Add</button>
+      <button class="btn-primary" type="button" (click)="addTimer()">Add</button>
     </div>
-    @if (validationMessage) {
-      <p class="validation" role="alert">{{ validationMessage }}</p>
+    @if (validationMessage()) {
+    <p class="validation" role="alert">{{ validationMessage() }}</p>
     }
   </section>
 
   <section class="timer-list" aria-label="Timers">
-    @for (timer of timers; track timer.id) {
+    @for (timer of timers(); track timer.id) {
       <article class="timer-card" [class.running]="timer.status === 'running'">
         <div class="timer-heading">
           <h3>{{ timer.label }}</h3>
@@ -41,13 +41,13 @@
         <p class="status">{{ timer.status }}</p>
         <div class="timer-actions">
           @if (timer.status === 'idle' || timer.status === 'completed') {
-            <button type="button" (click)="start(timer)">Start</button>
+            <button class="btn-primary" type="button" (click)="start(timer)">Start</button>
           }
           @if (timer.status === 'running') {
             <button type="button" (click)="pause(timer)">Pause</button>
           }
           @if (timer.status === 'paused') {
-            <button type="button" (click)="resume(timer)">Resume</button>
+            <button class="btn-primary" type="button" (click)="resume(timer)">Resume</button>
           }
           @if (timer.status !== 'idle') {
             <button type="button" (click)="reset(timer)">Reset</button>

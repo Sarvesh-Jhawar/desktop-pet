@@ -1,15 +1,14 @@
 :host {
   display: block;
   min-height: 100vh;
-  background: #f6f3ee;
-  color: #202020;
+  background: var(--bg-base);
+  color: var(--text-primary);
 }
 
 .settings-panel {
   min-height: 100vh;
   box-sizing: border-box;
   padding: 28px;
-  font-family: Arial, sans-serif;
 }
 
 h1 {
@@ -28,12 +27,12 @@ h1 {
 .setting-row input {
   width: 18px;
   height: 18px;
-  accent-color: #2f6f5e;
+  accent-color: var(--accent-start);
 }
 
 .credit {
   margin-top: 32px;
-  color: #777;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
@@ -41,23 +40,81 @@ h1 {
   margin-top: 28px;
 }
 
+.speech-controls {
+  margin-top: 28px;
+}
+
+.speech-controls h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.speech-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.speech-actions button {
+  padding: 9px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.speech-actions button.btn-primary {
+  border: 0;
+  color: white;
+}
+
+.speech-actions button:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
+}
+
+.speech-status,
+.speech-error {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.speech-error {
+  color: #ffb4ab;
+}
+
 .size-controls h2 {
   margin: 0 0 12px;
   font-size: 16px;
 }
 
-.size-controls button {
-  margin-right: 6px;
-  padding: 6px 12px;
-  border: 1px solid #c9c3ba;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #202020;
+.size-options {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.size-options button:not(.btn-primary) {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
   cursor: pointer;
 }
 
-.size-controls button.active {
-  background: #4a90d9;
-  border-color: #4a90d9;
-  color: #ffffff;
+.size-options button:not(.btn-primary):hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.size-options button:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
 }

@@ -1,11 +1,18 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ReminderStoreService } from '../../core/reminder-store.service';
 import { Reminder } from '../../shared/reminder.model';
 
 @Component({
   selector: 'app-reminders',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule],
   templateUrl: './reminders.html',
   styleUrl: './reminders.css'
@@ -13,7 +20,7 @@ import { Reminder } from '../../shared/reminder.model';
 export class Reminders implements OnInit {
   private readonly store = inject(ReminderStoreService);
 
-  reminders: Reminder[] = [];
+  reminders = signal<Reminder[]>([]);
   newTitle = '';
   newDateTime = '';
   newRepeatMinutes: number | null = null;
@@ -23,7 +30,9 @@ export class Reminders implements OnInit {
   }
 
   async refresh(): Promise<void> {
-    this.reminders = (await this.store.getAll()).filter(reminder => !reminder.completed);
+    this.reminders.set(
+      (await this.store.getAll()).filter(reminder => !reminder.completed)
+    );
   }
 
   async add(): Promise<void> {

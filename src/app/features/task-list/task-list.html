@@ -1,4 +1,4 @@
-<div class="task-panel">
+<div class="task-panel glass-panel">
 	<h2>Today's Tasks</h2>
 
 	<div class="add-row">
@@ -12,11 +12,11 @@
 			<option value="medium">Medium</option>
 			<option value="high">High</option>
 		</select>
-		<button (click)="addTask()">+ Add</button>
+		<button class="btn-primary" (click)="addTask()">+ Add</button>
 	</div>
 
 	<ul>
-		@for (task of tasks; track task.id) {
+		@for (task of tasks(); track task.id) {
 			<li [class.completed]="task.completed">
 				<input
 					type="checkbox"
@@ -29,6 +29,8 @@
 				</span>
 				<button class="delete" (click)="deleteTask(task)" aria-label="Delete task">✕</button>
 			</li>
+		} @empty {
+			<li class="empty">No tasks yet. Add one to get started.</li>
 		}
 	</ul>
 </div>

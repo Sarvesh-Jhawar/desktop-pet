@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { Reminders } from '../reminders/reminders';
 import { Settings } from '../settings/settings';
 import { TaskList } from '../task-list/task-list';
@@ -14,9 +14,9 @@ type DashboardTab = 'tasks' | 'timers' | 'reminders' | 'settings';
   styleUrl: './dashboard.css'
 })
 export class Dashboard {
-  activeTab: DashboardTab = 'tasks';
+  activeTab = signal<DashboardTab>('tasks');
 
   selectTab(tab: DashboardTab): void {
-    this.activeTab = tab;
+    this.activeTab.set(tab);
   }
 }

@@ -24,6 +24,7 @@ import {
 } from '@tauri-apps/api/event';
 
 import {
+  LogicalSize,
   PhysicalPosition
 } from '@tauri-apps/api/dpi';
 
@@ -38,6 +39,10 @@ import { TimerService, TimerState } from '../../core/timer.service';
 import { PetStateService } from '../../core/pet-state.service';
 import { PetRulesService } from '../../core/pet-rules.service';
 import { DialogueService } from '../../core/dialogue.service';
+import { SoundService } from '../../core/sound.service';
+import { SpeechService } from '../../core/speech.service';
+import { TaskStoreService } from '../../core/task-store.service';
+import { Task } from '../../shared/task.model';
 
 type PetSize = 'small' | 'medium' | 'large';
 
@@ -46,6 +51,8 @@ const SIZE_MAP: Record<PetSize, number> = {
   medium: 250,
   large: 350
 };
+
+const SPEECH_BUBBLE_SYNC_DELAY_MS = 180;
 
 
 @Component({
@@ -67,8 +74,30 @@ export class Pet implements OnInit, OnDestroy {
 
   private readonly dialogue = inject(DialogueService);
 
+  private readonly sound = inject(SoundService);
+
+  private readonly speech = inject(SpeechService);
+
+  private readonly taskStore = inject(TaskStoreService);
+
   private readonly isTauriRuntime =
     Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
+
+  private readonly speechQueue: Array<{
+    message: string;
+    fallbackDurationMs: number;
+    resolve: () => void;
+  }> = [];
+
+  private processingSpeechQueue = false;
+
+  private lastClickSpeechAt = 0;
+
+  private startupGreeting?: Promise<void>;
+
+  private petFocused = false;
+
+  private riveLoaded = false;
 
   @ViewChild('petCanvas', { static: true })
   canvasRef!: ElementRef<HTMLCanvasElement>;
@@ -117,6 +146,10 @@ export class Pet implements OnInit, OnDestroy {
 
   private unlistenTimerRequestState?: () => void;
 
+  private unlistenSoundsToggled?: () => void;
+
+  private unlistenPetFocus?: () => void;
+
 
   /*
    * =========================================================
@@ -149,6 +182,23 @@ export class Pet implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
 
     if (this.isTauriRuntime) {
+      this.unlistenPetFocus = await getCurrentWindow().onFocusChanged(
+        ({ payload: focused }) => {
+          this.petFocused = focused;
+          if (focused && this.riveLoaded) {
+            void this.greetOnFirstShow().catch(error => {
+              console.error('Failed to prepare Milly’s startup greeting:', error);
+            });
+          }
+        }
+      );
+
+      await this.sound.init();
+      this.unlistenSoundsToggled = await listen<boolean>(
+        'sounds-toggled',
+        event => this.sound.setEnabled(event.payload)
+      );
+
       this.unlistenSizeChanged =
         await listen<PetSize>(
           'pet-size-changed',
@@ -234,6 +284,7 @@ export class Pet implements OnInit, OnDestroy {
         this.rive?.resizeDrawingSurfaceToCanvas();
         this.petState.attach(this.rive!);
         this.petRules.start();
+        this.riveLoaded = true;
 
 
         const inputs =
@@ -306,17 +357,15 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
          * -----------------------------------------------------
          */
 
-        const greeting = this.dialogue.getMessage('greeting');
-
-        console.log(
-          'Milly greeting:',
-          greeting
-        );
-
-        this.showBubble(
-          greeting,
-          3000
-        );
+        if (this.isTauriRuntime) {
+          if (this.petFocused) {
+            void this.greetOnFirstShow().catch(error => {
+              console.error('Failed to prepare Milly’s startup greeting:', error);
+            });
+          }
+        } else {
+          this.showBubble(this.dialogue.getMessage('greeting'), 3000);
+        }
       },
 
 
@@ -380,7 +429,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
   private showBubble(
     message: string,
-    durationMs = 2500
+    durationMs: number | null = 2500
   ): void {
 
     console.log(
@@ -401,16 +450,21 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     }
 
 
-    this.bubbleTimeout =
-      setTimeout(() => {
+    if (durationMs !== null) {
+      this.bubbleTimeout =
+        setTimeout(() => {
 
-        this.hideBubble();
+          this.hideBubble();
 
-      }, durationMs);
+        }, durationMs);
+    }
   }
 
 
-  private hideBubble(): void {
+  private hideBubble(expectedMessage?: string): void {
+    if (expectedMessage && this.bubbleMessage() !== expectedMessage) {
+      return;
+    }
 
     console.log(
       'Hiding bubble'
@@ -418,6 +472,172 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     this.bubbleVisible.set(false);
     this.bubbleTimeout = undefined;
+  }
+
+  private greetOnFirstShow(): Promise<void> {
+    this.startupGreeting ??= this.loadStartupGreeting();
+    return this.startupGreeting;
+  }
+
+  private async loadStartupGreeting(): Promise<void> {
+    let messages: string[];
+    try {
+      const pendingTasks = (await this.taskStore.getAllTasks()).filter(
+        task => !task.completed
+      );
+      messages = this.createStartupGreeting(pendingTasks);
+    } catch (error) {
+      console.error('Failed to load pending tasks for Milly’s greeting:', error);
+      messages = ["Hi Sarvesh! Good to see you. Let's make today productive!"];
+    }
+
+    for (const message of messages) {
+      await this.enqueueSpeech(message, 4000);
+    }
+  }
+
+  private createStartupGreeting(pendingTasks: Task[]): string[] {
+    if (pendingTasks.length === 0) {
+      return [
+        'Hi Sarvesh! Good to see you. You have no pending tasks right now. What shall we work on today?'
+      ];
+    }
+
+    const taskCount = pendingTasks.length;
+    const taskLabel = taskCount === 1 ? 'task' : 'tasks';
+    let currentMessage =
+      `Hi Sarvesh! Good to see you. You have ${taskCount} pending ${taskLabel}.`;
+    const messages: string[] = [];
+
+    for (const [index, task] of pendingTasks.entries()) {
+      const taskText = `Task ${index + 1}: ${task.title}.`;
+      if (taskText.length > 3400) {
+        if (currentMessage) {
+          messages.push(currentMessage);
+          currentMessage = '';
+        }
+        const prefix = `Task ${index + 1} continued: `;
+        let remainingTitle = task.title;
+        let firstPart = true;
+        while (remainingTitle.length > 0) {
+          const partPrefix = firstPart ? `Task ${index + 1}: ` : prefix;
+          const partLength = 3400 - partPrefix.length;
+          messages.push(`${partPrefix}${remainingTitle.slice(0, partLength)}`);
+          remainingTitle = remainingTitle.slice(partLength);
+          firstPart = false;
+        }
+        continue;
+      }
+      if (!currentMessage) {
+        currentMessage = 'More pending tasks.';
+      }
+      if (currentMessage.length + taskText.length + 1 > 3500) {
+        messages.push(currentMessage);
+        currentMessage = `More pending tasks. ${taskText}`;
+      } else {
+        currentMessage += ` ${taskText}`;
+      }
+    }
+
+    if (currentMessage) {
+      messages.push(currentMessage);
+    }
+    return messages;
+  }
+
+  private enqueueSpeech(
+    message: string,
+    fallbackDurationMs: number,
+    throttleClick = false
+  ): Promise<void> {
+    if (!this.isTauriRuntime) {
+      this.showBubble(message, fallbackDurationMs);
+      return Promise.resolve();
+    }
+
+    const now = Date.now();
+    if (throttleClick && now - this.lastClickSpeechAt < 5000) {
+      return Promise.resolve();
+    }
+    if (throttleClick) {
+      this.lastClickSpeechAt = now;
+    }
+
+    return new Promise(resolve => {
+      this.speechQueue.push({ message, fallbackDurationMs, resolve });
+      void this.processSpeechQueue();
+    });
+  }
+
+  private async processSpeechQueue(): Promise<void> {
+    if (this.processingSpeechQueue) {
+      return;
+    }
+    this.processingSpeechQueue = true;
+
+    try {
+      while (this.speechQueue.length > 0) {
+        const item = this.speechQueue.shift()!;
+        let bubbleShown = false;
+        let cancelled = false;
+        let playbackEnded = false;
+        let bubbleShowTimeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+          while (await this.speech.isSpeaking()) {
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
+
+          await this.speech.speakAndWait(item.message, {
+            onPlaybackStart: () => {
+              bubbleShown = true;
+              bubbleShowTimeout = setTimeout(() => {
+                bubbleShowTimeout = undefined;
+                if (!cancelled && !playbackEnded) {
+                  this.showBubble(item.message, null);
+                }
+              }, SPEECH_BUBBLE_SYNC_DELAY_MS);
+            },
+            onPlaybackEnd: () => {
+              playbackEnded = true;
+              if (bubbleShowTimeout) {
+                clearTimeout(bubbleShowTimeout);
+                bubbleShowTimeout = undefined;
+              }
+              this.hideBubble(item.message);
+            },
+            onPlaybackUnavailable: () => {
+              bubbleShown = true;
+              this.showBubble(item.message, item.fallbackDurationMs);
+            },
+            onPlaybackCancelled: () => {
+              cancelled = true;
+              if (bubbleShowTimeout) {
+                clearTimeout(bubbleShowTimeout);
+                bubbleShowTimeout = undefined;
+              }
+              this.hideBubble(item.message);
+            }
+          });
+        } catch (error) {
+          console.error('Failed to speak a pet interaction:', error);
+          if (!bubbleShown) {
+            this.showBubble(item.message, item.fallbackDurationMs);
+          }
+        } finally {
+          if (bubbleShowTimeout) {
+            clearTimeout(bubbleShowTimeout);
+          }
+          item.resolve();
+        }
+        if (cancelled) {
+          for (const queuedItem of this.speechQueue.splice(0)) {
+            queuedItem.resolve();
+          }
+        }
+      }
+    } finally {
+      this.processingSpeechQueue = false;
+    }
   }
 
 
@@ -711,6 +931,14 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     canvas.width = px;
     canvas.height = px;
 
+    if (this.isTauriRuntime) {
+      void getCurrentWindow()
+        .setSize(new LogicalSize(px, px))
+        .catch(error => {
+          console.error('Failed to resize pet window:', error);
+        });
+    }
+
 
     this.rive?.resizeDrawingSurfaceToCanvas();
 
@@ -848,6 +1076,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       'PET CLICKED'
     );
 
+    this.sound.play('click');
+
 
     /*
      * Animation
@@ -882,10 +1112,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     );
 
 
-    this.showBubble(
-      message,
-      2500
-    );
+    void this.enqueueSpeech(message, 2500, true);
   }
 
 
@@ -911,11 +1138,12 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     this.petRules.setTemporaryOverride(true);
     this.petState.setState('celebrating', true);
+    this.sound.play('taskComplete');
 
-    this.showBubble(
-      this.dialogue.getMessage('taskCompleted'),
-      3000
-    );
+    await this.greetOnFirstShow();
+    const completionMessage =
+      `Task ${taskTitle} complete! ${this.dialogue.getMessage('taskCompleted')}`;
+    void this.enqueueSpeech(completionMessage, 3000);
     setTimeout(() => {
       this.petState.resetToIdle();
       this.petRules.setTemporaryOverride(false);
@@ -929,11 +1157,12 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     this.petRules.setTemporaryOverride(true);
     this.petState.setState('celebrating', true);
+    this.sound.play('timerComplete');
 
-    this.showBubble(
-      `Focus timer "${timer.label}" complete! ${this.dialogue.getMessage('timerCompleted')}`,
-      3500
-    );
+    const completionMessage =
+      `Focus timer "${timer.label}" complete! ${this.dialogue.getMessage('timerCompleted')}`;
+    await this.greetOnFirstShow();
+    void this.enqueueSpeech(completionMessage, 3500);
     setTimeout(() => {
       this.petState.resetToIdle();
       this.petRules.setTemporaryOverride(false);
@@ -947,6 +1176,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     this.petRules.setTemporaryOverride(true);
     this.petState.setState('waiting');
+    this.sound.play('reminder');
 
     this.showBubble(
       `${this.dialogue.getMessage('reminderDue')} ${reminder.title}`,
@@ -1024,6 +1254,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     this.unlistenTimerCommand?.();
     this.unlistenTimerRequestState?.();
+    this.unlistenSoundsToggled?.();
+    this.unlistenPetFocus?.();
     this.timerService.onComplete = undefined;
     this.reminderScheduler.onReminderDue = undefined;
     this.reminderScheduler.stop();

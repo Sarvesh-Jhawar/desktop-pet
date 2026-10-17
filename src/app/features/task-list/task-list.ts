@@ -2,7 +2,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   OnInit,
-  inject
+  inject,
+  signal
 } from '@angular/core';
 import { emit } from '@tauri-apps/api/event';
 import {
@@ -24,7 +25,7 @@ import { Task } from '../../shared/task.model';
 export class TaskList implements OnInit {
   private readonly taskStore = inject(TaskStoreService);
 
-  tasks: Task[] = [];
+  tasks = signal<Task[]>([]);
   newTitle = '';
   newPriority: Task['priority'] = 'medium';
 
@@ -33,7 +34,7 @@ export class TaskList implements OnInit {
   }
 
   async refresh(): Promise<void> {
-    this.tasks = await this.taskStore.getAllTasks();
+    this.tasks.set(await this.taskStore.getAllTasks());
   }
 
   async addTask(): Promise<void> {

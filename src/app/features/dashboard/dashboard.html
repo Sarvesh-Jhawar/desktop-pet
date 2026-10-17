@@ -8,14 +8,14 @@
   </header>
 
   <nav class="dashboard-tabs" aria-label="Dashboard sections">
-    <button [class.active]="activeTab === 'tasks'" (click)="selectTab('tasks')">Tasks</button>
-    <button [class.active]="activeTab === 'timers'" (click)="selectTab('timers')">Timers</button>
-    <button [class.active]="activeTab === 'reminders'" (click)="selectTab('reminders')">Reminders</button>
-    <button [class.active]="activeTab === 'settings'" (click)="selectTab('settings')">Settings</button>
+    <button [class.active]="activeTab() === 'tasks'" (click)="selectTab('tasks')">Tasks</button>
+    <button [class.active]="activeTab() === 'timers'" (click)="selectTab('timers')">Timers</button>
+    <button [class.active]="activeTab() === 'reminders'" (click)="selectTab('reminders')">Reminders</button>
+    <button [class.active]="activeTab() === 'settings'" (click)="selectTab('settings')">Settings</button>
   </nav>
 
   <section class="dashboard-content">
-    @switch (activeTab) {
+    @switch (activeTab()) {
       @case ('tasks') { <app-task-list /> }
       @case ('timers') { <app-timer /> }
       @case ('reminders') { <app-reminders /> }
