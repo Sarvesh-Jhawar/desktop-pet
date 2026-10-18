@@ -3,14 +3,28 @@ import { vi } from 'vitest';
 
 import { Pet } from './pet';
 import { Task } from '../../shared/task.model';
+import { MotivationalQuoteService } from '../../core/motivational-quote.service';
+import type { MotivationalQuote } from '../../core/motivational-quote.service';
 
 describe('Pet', () => {
   let component: Pet;
   let fixture: ComponentFixture<Pet>;
+  const motivationalQuotes = {
+    next: vi.fn<() => Promise<MotivationalQuote | null>>()
+  };
 
   beforeEach(async () => {
+    motivationalQuotes.next.mockReset();
+    motivationalQuotes.next.mockResolvedValue({
+      id: 'test_001',
+      text: 'A little progress is still progress. Keep going!',
+      category: 'small_wins'
+    });
     await TestBed.configureTestingModule({
       imports: [Pet],
+      providers: [
+        { provide: MotivationalQuoteService, useValue: motivationalQuotes }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(Pet);
@@ -64,16 +78,13 @@ describe('Pet', () => {
     expect(component.quickActionsVisible()).toBe(false);
   });
 
-  it('shows a randomly selected motivational message', () => {
-    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+  it('shows a quote from the motivational quote library', async () => {
+    await component.motivate();
 
-    component.motivate();
-
+    expect(motivationalQuotes.next).toHaveBeenCalledOnce();
     expect(component.bubbleVisible()).toBe(true);
     expect(component.bubbleMessage()).toBe(
-      'You’ve got this, Sarvesh! Every small step is progress.'
+      'A little progress is still progress. Keep going!'
     );
-
-    random.mockRestore();
   });
 });

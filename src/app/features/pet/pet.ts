@@ -44,6 +44,7 @@ import { PetRulesService } from '../../core/pet-rules.service';
 import { DialogueService } from '../../core/dialogue.service';
 import { SoundService } from '../../core/sound.service';
 import { SpeechService } from '../../core/speech.service';
+import { MotivationalQuoteService } from '../../core/motivational-quote.service';
 import { TaskStoreService } from '../../core/task-store.service';
 import {
   ActiveHealthHabit,
@@ -61,16 +62,6 @@ const SIZE_MAP: Record<PetSize, number> = {
 };
 
 const SPEECH_BUBBLE_SYNC_DELAY_MS = 180;
-const MOTIVATIONAL_MESSAGES = [
-  'You’ve got this, Sarvesh! Every small step is progress.',
-  'Believe in yourself. You are capable of more than you think.',
-  'Take it one step at a time. You’re doing great!',
-  'You don’t have to be perfect. Just keep moving forward.',
-  'Your effort today is building something wonderful for tomorrow.',
-  'A little progress is still progress. Keep going!'
-];
-
-
 @Component({
   selector: 'app-pet',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -94,6 +85,8 @@ export class Pet implements OnInit, OnDestroy {
   private readonly sound = inject(SoundService);
 
   private readonly speech = inject(SpeechService);
+
+  private readonly motivationalQuotes = inject(MotivationalQuoteService);
 
   private readonly taskStore = inject(TaskStoreService);
 
@@ -1181,12 +1174,19 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.onPetClick();
   }
 
-  motivate(): void {
-    const message = MOTIVATIONAL_MESSAGES[
-      Math.floor(Math.random() * MOTIVATIONAL_MESSAGES.length)
-    ];
+  async motivate(): Promise<void> {
     this.closeQuickActions();
-    void this.enqueueSpeech(message, 4000);
+    try {
+      const quote = await this.motivationalQuotes.next();
+      if (!quote) {
+        this.showBubble('I could not find a motivational quote right now.', 4000);
+        return;
+      }
+      await this.enqueueSpeech(quote.text, 4000);
+    } catch (error) {
+      console.error('Failed to load a motivational quote:', error);
+      this.showBubble('I could not load a motivational quote right now.', 4000);
+    }
   }
 
 

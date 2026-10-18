@@ -1,46 +1,53 @@
-# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
 
-# Compiled output
-/dist
-/tmp
-/out-tsc
-/bazel-out
+# Angular & Frontend Build
+.angular/
+dist/
+tmp/
+out-tsc/
 
-# Node
-/node_modules
-npm-debug.log
-yarn-error.log
+# Tauri & Rust Build
+src-tauri/target/
+src-tauri/gen/schemas/
 
-# IDEs and editors
-.idea/
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
+# Python & Speech Engine
+.venv/
+*/.venv/
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+speech-engine/build/
+speech-engine/.build/
+speech-engine/dist/*
+!speech-engine/dist/milly-tts/
+speech-engine/dist/milly-tts/*
+!speech-engine/dist/milly-tts/.gitkeep
 
-# Visual Studio Code
+# Test Audio Models & Recordings
+test-pet-audio/.venv/
+test-pet-audio/*.onnx
+test-pet-audio/*.bin
+test-pet-audio/*.wav
+
+# Environment & Logs
+.env
+.env.*
+!.env.example
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor & OS files
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-!.vscode/mcp.json
-.history/*
-
-# Miscellaneous
-/.angular/cache
-.sass-cache/
-/connect.lock
-/coverage
-/libpeerconnection.log
-testem.log
-/typings
-__screenshots__/
-
-# System files
+.idea/
 .DS_Store
 Thumbs.db
-# Tauri / Rust
-/src-tauri/target/
