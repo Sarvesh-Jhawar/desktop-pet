@@ -12,11 +12,13 @@ import { TimerState } from '../../core/timer.service';
 })
 export class Timer implements OnInit, OnDestroy {
   timers = signal<TimerState[]>([]);
-  newLabel = '';
+  newLabel = '10-minute timer';
   newHours = 0;
   newMinutes = 10;
   newSeconds = 0;
   validationMessage = signal('');
+
+  private timerNameEdited = false;
 
   private unlisten?: () => void;
 
@@ -31,6 +33,11 @@ export class Timer implements OnInit, OnDestroy {
     const duration = this.toSeconds(this.newHours, this.newMinutes, this.newSeconds);
     this.validationMessage.set('');
 
+    const label = this.newLabel.trim();
+    if (!label) {
+      this.validationMessage.set('Enter a name for this timer.');
+      return;
+    }
     if (duration <= 0) {
       this.validationMessage.set('Set a duration greater than zero.');
       return;
@@ -40,12 +47,70 @@ export class Timer implements OnInit, OnDestroy {
       return;
     }
 
-    const label = this.newLabel.trim() || `Timer ${this.timers().length + 1}`;
     await emit('timer-command', { action: 'add', label, duration });
-    this.newLabel = '';
     this.newHours = 0;
     this.newMinutes = 10;
     this.newSeconds = 0;
+    this.timerNameEdited = false;
+    this.newLabel = this.suggestedTimerName();
+    this.validationMessage.set('');
+  }
+
+  onTimerNameInput(value: string): void {
+    this.timerNameEdited = true;
+    this.newLabel = value;
+  }
+
+  onTimerDurationChange(): void {
+    if (!this.timerNameEdited) {
+      this.newLabel = this.suggestedTimerName();
+    }
+    this.validationMessage.set('');
+  }
+
+  private suggestedTimerName(): string {
+    const duration = this.toSeconds(this.newHours, this.newMinutes, this.newSeconds);
+    const presets: Record<number, string> = {
+      [5 * 60]: 'Short break',
+      [15 * 60]: 'Quick focus',
+      [25 * 60]: 'Focus session',
+      [45 * 60]: 'Deep work'
+    };
+    const preset = presets[duration];
+    if (preset) return preset;
+
+    const hours = Math.floor(duration / 3600);
+    const minutes = Math.floor((duration % 3600) / 60);
+    const seconds = duration % 60;
+    const parts: string[] = [];
+    if (hours) parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
+    if (minutes) parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+    if (seconds) parts.push(`${seconds} ${seconds === 1 ? 'second' : 'seconds'}`);
+    return parts.length ? `${parts.join(' ')} timer` : 'Custom timer';
+  }
+
+  async quickStart(minutes: number): Promise<void> {
+    await emit('timer-command', {
+      action: 'quick-start',
+      label: `${minutes}-minute focus`,
+      duration: minutes * 60
+    });
+  }
+
+  async adjust(timer: TimerState, seconds: number): Promise<void> {
+    await emit('timer-command', { action: 'adjust', id: timer.id, seconds });
+  }
+
+  adjustWithWheel(timer: TimerState, event: WheelEvent): void {
+    if (timer.status === 'completed') return;
+    event.preventDefault();
+    void this.adjust(timer, event.deltaY < 0 ? 60 : -60);
+  }
+
+  adjustWithKeyboard(timer: TimerState, event: KeyboardEvent): void {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    void this.adjust(timer, event.key === 'ArrowUp' ? 60 : -60);
   }
 
   async start(timer: TimerState): Promise<void> {

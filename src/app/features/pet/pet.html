@@ -63,7 +63,108 @@
       [style.top.px]="quickActionPosition().y"
       (contextmenu)="$event.preventDefault()"
     >
-      @if (quickTaskMode()) {
+      @if (quickReadOutMode()) {
+        <div class="quick-read-out-menu">
+          <strong>Read out</strong>
+          <button type="button" (click)="readOutTasks()">Tasks</button>
+          <button type="button" (click)="readOutTimers()">Timers</button>
+          <button type="button" (click)="readOutReminders()">Reminders</button>
+          <button type="button" class="read-out-back" (click)="quickReadOutMode.set(false)">
+            Back
+          </button>
+        </div>
+      } @else if (quickReminderMode()) {
+        <form class="quick-reminder-form" (submit)="addQuickReminder($event)">
+          <strong>Add reminder</strong>
+          <label for="quick-reminder-title">What should I remind you about?</label>
+          <input
+            id="quick-reminder-title"
+            name="quickReminderTitle"
+            type="text"
+            maxlength="100"
+            placeholder="e.g. Submit the assignment"
+            required
+            autocomplete="off"
+            [(ngModel)]="quickReminderTitle"
+          />
+          <label for="quick-reminder-time">When?</label>
+          <input
+            id="quick-reminder-time"
+            name="quickReminderDateTime"
+            type="datetime-local"
+            required
+            [(ngModel)]="quickReminderDateTime"
+          />
+          @if (quickReminderError()) {
+            <span class="quick-timer-error" role="alert">{{ quickReminderError() }}</span>
+          }
+          <div class="quick-task-form-actions">
+            <button type="button" (click)="closeQuickActions()">Cancel</button>
+            <button
+              type="submit"
+              [disabled]="!quickReminderTitle.trim() || !quickReminderDateTime"
+            >Save reminder</button>
+          </div>
+        </form>
+      } @else if (quickTimerMode()) {
+        <div class="quick-timer-menu">
+          <strong>Start timer</strong>
+          @if (quickTimerLabelMode()) {
+            <form class="quick-timer-label-form" (submit)="startLabeledQuickTimer($event)">
+              <label for="quick-timer-label">Timer name</label>
+              <input
+                id="quick-timer-label"
+                name="quickTimerLabel"
+                type="text"
+                maxlength="32"
+                required
+                autocomplete="off"
+                [(ngModel)]="quickTimerLabel"
+              />
+              <div class="quick-task-form-actions">
+                <button type="button" (click)="quickTimerLabelMode.set(false)">Back</button>
+                <button type="submit" [disabled]="!quickTimerLabel.trim()">Start</button>
+              </div>
+            </form>
+          } @else {
+          <button type="button" class="timer-choice" (click)="selectQuickTimer(25)">
+            25-minute timer
+          </button>
+          <button type="button" class="timer-choice" (click)="selectQuickTimer(5)">
+            5-minute timer
+          </button>
+          @if (quickCustomTimerMode()) {
+            <form class="quick-custom-timer" (submit)="startCustomQuickTimer($event)">
+              <label for="quick-timer-minutes">Custom minutes</label>
+              <input
+                id="quick-timer-minutes"
+                name="quickTimerMinutes"
+                type="number"
+                min="1"
+                max="5940"
+                step="1"
+                required
+                [(ngModel)]="quickTimerMinutes"
+              />
+              @if (quickTimerError()) {
+                <span class="quick-timer-error" role="alert">{{ quickTimerError() }}</span>
+              }
+              <div class="quick-task-form-actions">
+                <button type="button" (click)="quickCustomTimerMode.set(false)">Back</button>
+                <button type="submit">Start</button>
+              </div>
+            </form>
+          } @else {
+            <button type="button" class="timer-choice" (click)="beginCustomQuickTimer()">
+              Custom…
+            </button>
+          }
+          <button type="button" class="timer-back" (click)="quickTimerMode.set(false)">
+            Back
+          </button>
+          }
+        </div>
+      } @else if (quickTaskMode()) {
         <form class="quick-task-form" (submit)="addQuickTask($event)">
           <label for="quick-task-title">Quick task</label>
           <input
@@ -81,8 +182,8 @@
           </div>
         </form>
       } @else {
-        <button class="quick-action start-focus" (click)="startQuickFocusTimer()">
-          Start 25-min
+        <button class="quick-action start-focus" (click)="openQuickTimerOptions()">
+          Start timer
         </button>
         <button class="quick-action motivate-action" (click)="motivate()">
           Motivate me
@@ -90,14 +191,14 @@
         <button class="quick-action add-task" (click)="beginQuickTask()">
           Add quick task
         </button>
-        <button class="quick-action pet-action" (click)="feedPet()">
-          Feed / Pet
+        <button class="quick-action add-reminder" (click)="openQuickReminderForm()">
+          Add reminder
+        </button>
+        <button class="quick-action read-out-action" (click)="openQuickReadOutMenu()">
+          Read out
         </button>
         <button class="quick-action dashboard-action" (click)="openDashboardFromWheel()">
           Dashboard
-        </button>
-        <button class="quick-action sleep-action" (click)="putPetToSleep()">
-          Put to sleep
         </button>
       }
       <button
@@ -113,8 +214,16 @@
     class="speech-bubble"
     [class.visible]="bubbleVisible()"
     [attr.aria-hidden]="!bubbleVisible()"
+    [attr.inert]="bubbleVisible() ? null : ''"
   >
-    {{ bubbleMessage() }}
+    <div class="speech-bubble-text">{{ bubbleMessage() }}</div>
+    <button
+      class="speech-stop"
+      type="button"
+      aria-label="Stop speaking"
+      title="Stop speaking"
+      (click)="stopSpeech()"
+    >×</button>
   </div>
 
   <canvas

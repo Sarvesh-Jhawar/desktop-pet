@@ -4,24 +4,57 @@
     <span>{{ timers().length }} timers</span>
   </header>
 
+  <section class="quick-start" aria-labelledby="quick-start-heading">
+    <h3 id="quick-start-heading">Quick start</h3>
+    <div class="quick-start-options">
+      <button type="button" (click)="quickStart(15)">15 min</button>
+      <button type="button" (click)="quickStart(25)">25 min</button>
+      <button type="button" (click)="quickStart(45)">45 min</button>
+    </div>
+  </section>
+
   <section class="add-timer" aria-labelledby="add-timer-heading">
     <h3 id="add-timer-heading">Add timer</h3>
     <div class="add-fields">
       <label>
         Name
-        <input [(ngModel)]="newLabel" placeholder="Timer name" maxlength="32" />
+        <input
+          [(ngModel)]="newLabel"
+          (ngModelChange)="onTimerNameInput($event)"
+          placeholder="Timer name"
+          maxlength="32"
+          required
+        />
       </label>
       <label>
         Hours
-        <input type="number" [(ngModel)]="newHours" min="0" max="99" />
+        <input
+          type="number"
+          [(ngModel)]="newHours"
+          (ngModelChange)="onTimerDurationChange()"
+          min="0"
+          max="99"
+        />
       </label>
       <label>
         Minutes
-        <input type="number" [(ngModel)]="newMinutes" min="0" max="59" />
+        <input
+          type="number"
+          [(ngModel)]="newMinutes"
+          (ngModelChange)="onTimerDurationChange()"
+          min="0"
+          max="59"
+        />
       </label>
       <label>
         Seconds
-        <input type="number" [(ngModel)]="newSeconds" min="0" max="59" />
+        <input
+          type="number"
+          [(ngModel)]="newSeconds"
+          (ngModelChange)="onTimerDurationChange()"
+          min="0"
+          max="59"
+        />
       </label>
       <button class="btn-primary" type="button" (click)="addTimer()">Add</button>
     </div>
@@ -37,7 +70,18 @@
           <h3>{{ timer.label }}</h3>
           <button class="remove" type="button" (click)="remove(timer)" [disabled]="timer.status === 'running'" aria-label="Remove timer">Remove</button>
         </div>
-        <div class="clock">{{ display(timer.remaining) }}</div>
+        <div
+          class="clock"
+          role="spinbutton"
+          tabindex="0"
+          [attr.aria-label]="timer.label + ' remaining time'"
+          [attr.aria-valuenow]="timer.remaining"
+          [attr.aria-valuemin]="1"
+          [attr.aria-valuemax]="timer.remaining > timer.duration ? timer.remaining : timer.duration"
+          title="Scroll or use the arrow keys to adjust by one minute"
+          (wheel)="adjustWithWheel(timer, $event)"
+          (keydown)="adjustWithKeyboard(timer, $event)"
+        >{{ display(timer.remaining) }}</div>
         <p class="status">{{ timer.status }}</p>
         <div class="timer-actions">
           @if (timer.status === 'idle' || timer.status === 'completed') {

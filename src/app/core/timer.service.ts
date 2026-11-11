@@ -70,6 +70,52 @@ export class TimerService {
     this.intervalIds.set(id, setInterval(() => this.tick(id), 1000));
   }
 
+  quickStart(duration: number, label: string): void {
+    let timer = this.timers.find(candidate => candidate.duration === duration);
+    if (!timer) {
+      this.add(label, duration);
+      timer = this.timers.find(candidate => candidate.duration === duration);
+    }
+    if (!timer || timer.status === 'running') return;
+
+    if (timer.status === 'paused') {
+      this.resume(timer.id);
+    } else {
+      this.start(timer.id);
+    }
+  }
+
+  startWithLabel(duration: number, label: string): void {
+    if (duration <= 0 || !label.trim()) {
+      throw new Error('A timer requires a positive duration and a name.');
+    }
+
+    let timer = this.timers.find(candidate => candidate.duration === duration);
+    if (!timer) {
+      this.add(label, duration);
+      timer = this.timers.find(candidate => candidate.duration === duration);
+    } else if (timer.label !== label.trim()) {
+      timer.label = label.trim();
+      this.broadcast();
+    }
+
+    if (!timer) {
+      throw new Error(`Could not create a timer with duration ${duration}.`);
+    }
+    this.start(timer.id);
+  }
+
+  adjust(id: string, seconds: number): void {
+    const timer = this.find(id);
+    if (!timer || timer.status === 'completed' || !Number.isFinite(seconds)) return;
+
+    timer.remaining = Math.max(1, timer.remaining + seconds);
+    if (timer.status === 'idle') {
+      timer.duration = timer.remaining;
+    }
+    this.broadcast();
+  }
+
   reset(id: string): void {
     const timer = this.find(id);
     if (!timer) return;

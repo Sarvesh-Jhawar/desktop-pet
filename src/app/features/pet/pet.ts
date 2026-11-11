@@ -37,6 +37,7 @@ import {
 } from '@tauri-apps/plugin-store';
 
 import { ReminderSchedulerService } from '../../core/reminder-scheduler.service';
+import { ReminderStoreService } from '../../core/reminder-store.service';
 import { Reminder } from '../../shared/reminder.model';
 import { TimerService, TimerState } from '../../core/timer.service';
 import { PetStateService } from '../../core/pet-state.service';
@@ -76,6 +77,8 @@ export class Pet implements OnInit, OnDestroy {
 
   private readonly reminderScheduler = inject(ReminderSchedulerService);
 
+  private readonly reminderStore = inject(ReminderStoreService);
+
   private readonly petState = inject(PetStateService);
 
   private readonly petRules = inject(PetRulesService);
@@ -98,10 +101,13 @@ export class Pet implements OnInit, OnDestroy {
   private readonly speechQueue: Array<{
     message: string;
     fallbackDurationMs: number;
+    generation: number;
     resolve: () => void;
   }> = [];
 
   private processingSpeechQueue = false;
+
+  private speechQueueGeneration = 0;
 
   private lastClickSpeechAt = 0;
 
@@ -119,7 +125,29 @@ export class Pet implements OnInit, OnDestroy {
 
   quickActionsVisible = signal(false);
 
+  quickTimerMode = signal(false);
+
+  quickReminderMode = signal(false);
+
+  quickReadOutMode = signal(false);
+
+  quickTimerLabelMode = signal(false);
+
+  quickCustomTimerMode = signal(false);
+
   quickTaskMode = signal(false);
+
+  quickTimerMinutes = 25;
+
+  quickTimerLabel = '';
+
+  quickTimerError = signal('');
+
+  quickReminderTitle = '';
+
+  quickReminderDateTime = '';
+
+  quickReminderError = signal('');
 
   quickTaskTitle = '';
 
@@ -248,7 +276,6 @@ export class Pet implements OnInit, OnDestroy {
         'sounds-toggled',
         event => this.sound.setEnabled(event.payload)
       );
-
       this.unlistenSizeChanged =
         await listen<PetSize>(
           'pet-size-changed',
@@ -287,15 +314,20 @@ export class Pet implements OnInit, OnDestroy {
         id?: string;
         label?: string;
         duration?: number;
+        seconds?: number;
       }>(
         'timer-command',
         event => {
-          const { action, id, label, duration } = event.payload;
+          const { action, id, label, duration, seconds } = event.payload;
           if (action === 'add' && duration) this.timerService.add(label ?? '', duration);
+          if (action === 'quick-start' && duration) {
+            this.timerService.quickStart(duration, label ?? 'Focus timer');
+          }
           if (action === 'remove' && id) this.timerService.remove(id);
           if (action === 'start' && id) this.timerService.start(id);
           if (action === 'pause' && id) this.timerService.pause(id);
           if (action === 'resume' && id) this.timerService.resume(id);
+          if (action === 'adjust' && id && seconds) this.timerService.adjust(id, seconds);
           if (action === 'reset' && id) this.timerService.reset(id);
         }
       );
@@ -545,6 +577,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   }
 
   private async loadStartupGreeting(): Promise<void> {
+    const generation = this.speechQueueGeneration;
     let messages: string[];
     try {
       const pendingTasks = (await this.taskStore.getAllTasks()).filter(
@@ -557,7 +590,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     }
 
     for (const message of messages) {
-      await this.enqueueSpeech(message, 4000);
+      if (generation !== this.speechQueueGeneration) return;
+      await this.enqueueSpeech(message, 4000, false, generation);
     }
   }
 
@@ -613,8 +647,13 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   private enqueueSpeech(
     message: string,
     fallbackDurationMs: number,
-    throttleClick = false
+    throttleClick = false,
+    generation = this.speechQueueGeneration
   ): Promise<void> {
+    if (generation !== this.speechQueueGeneration) {
+      return Promise.resolve();
+    }
+
     if (!this.isTauriRuntime) {
       this.showBubble(message, fallbackDurationMs);
       return Promise.resolve();
@@ -629,7 +668,11 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     }
 
     return new Promise(resolve => {
-      this.speechQueue.push({ message, fallbackDurationMs, resolve });
+      if (generation !== this.speechQueueGeneration) {
+        resolve();
+        return;
+      }
+      this.speechQueue.push({ message, fallbackDurationMs, generation, resolve });
       void this.processSpeechQueue();
     });
   }
@@ -643,6 +686,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     try {
       while (this.speechQueue.length > 0) {
         const item = this.speechQueue.shift()!;
+        if (item.generation !== this.speechQueueGeneration) {
+          item.resolve();
+          continue;
+        }
         let bubbleShown = false;
         let cancelled = false;
         let playbackEnded = false;
@@ -650,6 +697,9 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         try {
           while (await this.speech.isSpeaking()) {
             await new Promise(resolve => setTimeout(resolve, 250));
+          }
+          if (item.generation !== this.speechQueueGeneration) {
+            continue;
           }
 
           await this.speech.speakAndWait(item.message, {
@@ -694,8 +744,9 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
           }
           item.resolve();
         }
-        if (cancelled) {
-          for (const queuedItem of this.speechQueue.splice(0)) {
+        if (cancelled && item.generation === this.speechQueueGeneration) {
+          const remaining = this.speechQueue.splice(0);
+          for (const queuedItem of remaining) {
             queuedItem.resolve();
           }
         }
@@ -792,7 +843,6 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         await this.store.get<PetSize>(
           'petSize'
         );
-
 
       console.log(
         'Saved size:',
@@ -972,7 +1022,6 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     const px =
       SIZE_MAP[size];
 
-
     this.currentSize =
       size;
 
@@ -1004,7 +1053,6 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         });
     }
 
-
     this.rive?.resizeDrawingSurfaceToCanvas();
 
 
@@ -1012,7 +1060,6 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       `Milly avatar resized to ${px}x${px}`
     );
   }
-
 
   /*
    * =========================================================
@@ -1063,7 +1110,15 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     );
 
     this.quickTaskMode.set(false);
+    this.quickTimerMode.set(false);
+    this.quickReminderMode.set(false);
+    this.quickReadOutMode.set(false);
+    this.quickTimerLabelMode.set(false);
+    this.quickCustomTimerMode.set(false);
     this.quickTaskTitle = '';
+    this.quickTimerError.set('');
+    this.quickReminderTitle = '';
+    this.quickReminderError.set('');
     this.quickActionPosition.set({ x, y });
     this.quickActionsVisible.set(true);
     setTimeout(() => {
@@ -1073,8 +1128,16 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
   closeQuickActions(): void {
     this.quickActionsVisible.set(false);
+    this.quickTimerMode.set(false);
+    this.quickReminderMode.set(false);
+    this.quickReadOutMode.set(false);
+    this.quickTimerLabelMode.set(false);
+    this.quickCustomTimerMode.set(false);
     this.quickTaskMode.set(false);
     this.quickTaskTitle = '';
+    this.quickTimerError.set('');
+    this.quickReminderTitle = '';
+    this.quickReminderError.set('');
   }
 
   private onGlobalPointerDown = (event: PointerEvent): void => {
@@ -1103,26 +1166,283 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     }
   };
 
-  async startQuickFocusTimer(): Promise<void> {
-    const focusDuration = 25 * 60;
-    let timer = this.timerService.getState().find(item => item.duration === focusDuration);
-    if (!timer) {
-      this.timerService.add('Focus', focusDuration);
-      timer = this.timerService.getState().find(item => item.duration === focusDuration);
+  openQuickTimerOptions(): void {
+    this.quickTimerMode.set(true);
+    this.quickTimerLabelMode.set(false);
+    this.quickCustomTimerMode.set(false);
+    this.quickTimerMinutes = 25;
+    this.quickTimerError.set('');
+  }
+
+  openQuickReminderForm(): void {
+    const suggestedTime = new Date(Date.now() + 31 * 60_000);
+    suggestedTime.setSeconds(0, 0);
+    this.quickTimerMode.set(false);
+    this.quickTaskMode.set(false);
+    this.quickReminderTitle = '';
+    this.quickReminderDateTime = this.toLocalDateTimeInput(suggestedTime);
+    this.quickReminderError.set('');
+    this.quickReminderMode.set(true);
+    setTimeout(() => {
+      this.quickActionWheelRef?.nativeElement
+        .querySelector<HTMLInputElement>('#quick-reminder-title')
+        ?.focus();
+    });
+  }
+
+  async addQuickReminder(event: Event): Promise<void> {
+    event.preventDefault();
+    const title = this.quickReminderTitle.trim();
+    const scheduledAt = new Date(this.quickReminderDateTime);
+    this.quickReminderError.set('');
+
+    if (!title) {
+      this.quickReminderError.set('Enter what you want to be reminded about.');
+      return;
+    }
+    if (!this.quickReminderDateTime || Number.isNaN(scheduledAt.getTime())) {
+      this.quickReminderError.set('Choose a valid date and time.');
+      return;
+    }
+    if (scheduledAt.getTime() <= Date.now()) {
+      this.quickReminderError.set('Choose a time in the future.');
+      return;
     }
 
-    if (!timer) {
-      const error = new Error('Could not create the 25-minute focus timer.');
-      console.error(error);
-      this.showBubble('I could not start the focus timer. Please try again.', 3000);
+    try {
+      await this.reminderStore.create(title, scheduledAt.toISOString());
+      try {
+        await emit('reminders-updated');
+      } catch (error) {
+        console.error('Reminder was saved, but other windows were not notified:', error);
+      }
+      this.closeQuickActions();
+      this.showBubble(`I’ll remind you: ${title}`, 3000);
+    } catch (error) {
+      console.error('Failed to add quick reminder:', error);
+      this.quickReminderError.set('Could not save the reminder. Please try again.');
+    }
+  }
+
+  private toLocalDateTimeInput(date: Date): string {
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return localDate.toISOString().slice(0, 16);
+  }
+
+  openQuickReadOutMenu(): void {
+    this.quickTimerMode.set(false);
+    this.quickReminderMode.set(false);
+    this.quickTaskMode.set(false);
+    this.quickReadOutMode.set(true);
+  }
+
+  async readOutTasks(): Promise<void> {
+    this.closeQuickActions();
+    const generation = await this.replaceSpeechQueue();
+    try {
+      const tasks = (await this.taskStore.getAllTasks()).filter(task => !task.completed);
+      if (tasks.length === 0) {
+        await this.enqueueSpeech('You have no open tasks right now.', 3000, false, generation);
+        return;
+      }
+
+      const entries = tasks.map((task, index) => {
+        const dueDate = task.dueDate
+          ? `, due ${new Date(task.dueDate).toLocaleString()}`
+          : '';
+        return `Task ${index + 1}: ${task.title}${dueDate}.`;
+      });
+      await this.speakOutList(`You have ${tasks.length} open tasks.`, entries, generation);
+    } catch (error) {
+      console.error('Failed to read tasks aloud:', error);
+      if (generation === this.speechQueueGeneration) {
+        this.showBubble('I could not read your tasks right now.', 3000);
+      }
+    }
+  }
+
+  async readOutTimers(): Promise<void> {
+    this.closeQuickActions();
+    const generation = await this.replaceSpeechQueue();
+    const timers = this.timerService.getState();
+    if (timers.length === 0) {
+      await this.enqueueSpeech('You do not have any timers.', 3000, false, generation);
+      return;
+    }
+
+    const entries = timers.map((timer, index) =>
+      `Timer ${index + 1}: ${timer.label}, ${this.describeDuration(timer.remaining)} remaining, currently ${timer.status}.`
+    );
+    await this.speakOutList(`You have ${timers.length} timers.`, entries, generation);
+  }
+
+  async readOutReminders(): Promise<void> {
+    this.closeQuickActions();
+    const generation = await this.replaceSpeechQueue();
+    try {
+      const reminders = (await this.reminderStore.getAll())
+        .filter(reminder => !reminder.completed)
+        .sort((left, right) =>
+          new Date(left.snoozedUntil ?? left.scheduledAt).getTime() -
+          new Date(right.snoozedUntil ?? right.scheduledAt).getTime()
+        );
+      if (reminders.length === 0) {
+        await this.enqueueSpeech('You have no upcoming reminders.', 3000, false, generation);
+        return;
+      }
+
+      const entries = reminders.map((reminder, index) => {
+        const scheduledAt = reminder.snoozedUntil ?? reminder.scheduledAt;
+        const time = reminder.triggered
+          ? 'is due now'
+          : `is scheduled for ${new Date(scheduledAt).toLocaleString()}`;
+        return `Reminder ${index + 1}: ${reminder.title}, ${time}.`;
+      });
+      await this.speakOutList(`You have ${reminders.length} reminders.`, entries, generation);
+    } catch (error) {
+      console.error('Failed to read reminders aloud:', error);
+      if (generation === this.speechQueueGeneration) {
+        this.showBubble('I could not read your reminders right now.', 3000);
+      }
+    }
+  }
+
+  private async speakOutList(
+    intro: string,
+    entries: string[],
+    generation: number
+  ): Promise<void> {
+    let message = intro;
+    for (const entry of entries) {
+      if (message.length + entry.length > 3000) {
+        await this.enqueueSpeech(message, 4000, false, generation);
+        if (generation !== this.speechQueueGeneration) return;
+        message = '';
+      }
+      message += `${message ? ' ' : ''}${entry}`;
+    }
+    if (message) {
+      await this.enqueueSpeech(message, 4000, false, generation);
+    }
+  }
+
+  async stopSpeech(): Promise<void> {
+    this.speechQueueGeneration += 1;
+    for (const queuedItem of this.speechQueue.splice(0)) {
+      queuedItem.resolve();
+    }
+
+    this.hideBubble();
+    if (!this.isTauriRuntime) return;
+    try {
+      await this.speech.stop();
+    } catch (error) {
+      console.error('Failed to stop Milly’s speech:', error);
+      this.showBubble('I could not stop speaking. Please try again.', 3000);
+    }
+  }
+
+  private async replaceSpeechQueue(): Promise<number> {
+    this.speechQueueGeneration += 1;
+    const generation = this.speechQueueGeneration;
+    for (const queuedItem of this.speechQueue.splice(0)) {
+      queuedItem.resolve();
+    }
+
+    if (this.isTauriRuntime) {
+      try {
+        await this.speech.stop();
+      } catch (error) {
+        console.error('Failed to stop the previous speech before reading a new list:', error);
+      }
+    }
+    return generation;
+  }
+
+  private describeDuration(totalSeconds: number): string {
+    const seconds = Math.max(0, Math.floor(totalSeconds));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainder = seconds % 60;
+    const parts: string[] = [];
+
+    if (hours) parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
+    if (minutes) parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+    if (remainder || parts.length === 0) {
+      parts.push(`${remainder} ${remainder === 1 ? 'second' : 'seconds'}`);
+    }
+
+    return parts.join(' and ');
+  }
+
+  selectQuickTimer(minutes: number): void {
+    this.quickTimerMinutes = minutes;
+    this.quickTimerLabel = minutes === 25 ? 'Focus session' : 'Short break';
+    this.quickTimerLabelMode.set(true);
+    this.quickTimerError.set('');
+    setTimeout(() => {
+      this.quickActionWheelRef?.nativeElement
+        .querySelector<HTMLInputElement>('#quick-timer-label')
+        ?.select();
+    });
+  }
+
+  beginCustomQuickTimer(): void {
+    this.quickCustomTimerMode.set(true);
+    this.quickTimerError.set('');
+    setTimeout(() => {
+      this.quickActionWheelRef?.nativeElement
+        .querySelector<HTMLInputElement>('#quick-timer-minutes')
+        ?.focus();
+    });
+  }
+
+  startCustomQuickTimer(event: Event): void {
+    event.preventDefault();
+    const minutes = Number(this.quickTimerMinutes);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 5940) {
+      this.quickTimerError.set('Enter a whole number from 1 to 5940 minutes.');
+      return;
+    }
+
+    this.quickTimerMinutes = minutes;
+    this.quickTimerLabel = this.quickTimerName(minutes);
+    this.quickCustomTimerMode.set(false);
+    this.quickTimerLabelMode.set(true);
+    this.quickTimerError.set('');
+    setTimeout(() => {
+      this.quickActionWheelRef?.nativeElement
+        .querySelector<HTMLInputElement>('#quick-timer-label')
+        ?.select();
+    });
+  }
+
+  private quickTimerName(minutes: number): string {
+    if (minutes === 5) return 'Short break';
+    if (minutes === 15) return 'Quick focus';
+    if (minutes === 25) return 'Focus session';
+    if (minutes === 45) return 'Deep work';
+    return `${minutes}-minute timer`;
+  }
+
+  async startLabeledQuickTimer(event: Event): Promise<void> {
+    event.preventDefault();
+    const label = this.quickTimerLabel.trim();
+    if (!label) return;
+
+    const minutes = this.quickTimerMinutes;
+    const duration = minutes * 60;
+    try {
+      this.timerService.startWithLabel(duration, label);
+    } catch (error) {
+      console.error(`Could not start the ${minutes}-minute timer:`, error);
+      this.showBubble('I could not start that timer. Please try again.', 3000);
       this.closeQuickActions();
       return;
     }
 
-    this.timerService.start(timer.id);
     this.closeQuickActions();
-    const message = 'Your 25-minute focus timer has started. Let’s get started!';
-    void this.enqueueSpeech(message, 3500);
+    void this.enqueueSpeech(`Your ${label} timer has started.`, 3000);
   }
 
   beginQuickTask(): void {
@@ -1160,18 +1480,6 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       this.showBubble('I could not open the Dashboard. Please try again.', 3000);
       this.closeQuickActions();
     }
-  }
-
-  putPetToSleep(): void {
-    this.closeQuickActions();
-    this.petRules.setTemporaryOverride(true);
-    this.petState.setState('sleeping');
-    void this.enqueueSpeech('I’m taking a little nap. Click me when you want me back!', 3500);
-  }
-
-  feedPet(): void {
-    this.closeQuickActions();
-    this.onPetClick();
   }
 
   async motivate(): Promise<void> {
@@ -1362,13 +1670,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     console.log('Entered onTaskCompleted:', taskTitle);
     const win = getCurrentWindow();
     console.log('Showing pet after task completion:', taskTitle);
-    try {
-      await win.show();
-      await win.setFocus();
-      console.log('Pet window shown and focused');
-    } catch (error) {
-      console.error('Failed to show or focus pet window:', error);
-    }
+    void win.show()
+      .then(() => win.setFocus())
+      .then(() => console.log('Pet window shown and focused'))
+      .catch(error => console.error('Failed to show or focus pet window:', error));
 
     console.log(
       'dizzyTrigger before fire:',
@@ -1379,10 +1684,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.petState.setState('celebrating', true);
     this.sound.play('taskComplete');
 
-    await this.greetOnFirstShow();
+    const generation = await this.replaceSpeechQueue();
     const completionMessage =
       `Task ${taskTitle} complete! ${this.dialogue.getMessage('taskCompleted')}`;
-    void this.enqueueSpeech(completionMessage, 3000);
+    void this.enqueueSpeech(completionMessage, 3000, false, generation);
     setTimeout(() => {
       this.petState.resetToIdle();
       this.petRules.setTemporaryOverride(false);
@@ -1404,8 +1709,9 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         if (breakTimer) {
           this.timerService.start(breakTimer.id);
           const win = getCurrentWindow();
-          await win.show();
-          await win.setFocus();
+          void win.show()
+            .then(() => win.setFocus())
+            .catch(error => console.error('Failed to show or focus pet after timer completion:', error));
           return;
         }
         console.error('Could not start the five-minute micro-break timer.');
@@ -1428,8 +1734,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     const completionMessage =
       `Focus timer "${timer.label}" complete! ${this.dialogue.getMessage('timerCompleted')}`;
-    await this.greetOnFirstShow();
-    void this.enqueueSpeech(completionMessage, 3500);
+    const generation = await this.replaceSpeechQueue();
+    void this.enqueueSpeech(completionMessage, 3500, false, generation);
     setTimeout(() => {
       this.petState.resetToIdle();
       this.petRules.setTemporaryOverride(false);

@@ -39,6 +39,178 @@ canvas {
   backdrop-filter: blur(8px);
 }
 
+.quick-reminder-form {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: 78%;
+  flex-direction: column;
+  gap: 7px;
+  color: #fff;
+  font: 600 11px Arial, sans-serif;
+  transform: translate(-50%, -50%);
+}
+
+.quick-reminder-form strong {
+  font-size: 14px;
+  text-align: center;
+}
+
+.quick-reminder-form label {
+  margin-top: 2px;
+}
+
+.quick-reminder-form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid #c6cbd7;
+  border-radius: 8px;
+  font: 11px Arial, sans-serif;
+}
+
+.quick-reminder-form input[type='datetime-local'] {
+  color-scheme: light;
+}
+
+.quick-reminder-form .quick-task-form-actions button {
+  padding-inline: 5px;
+}
+
+.quick-read-out-menu {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: 76%;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  color: #fff;
+  font: 600 12px Arial, sans-serif;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.quick-read-out-menu strong {
+  font-size: 14px;
+}
+
+.quick-read-out-menu button {
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: #fff;
+  color: #252a38;
+  font: 600 11px Arial, sans-serif;
+  cursor: pointer;
+}
+
+.quick-read-out-menu button:hover,
+.quick-read-out-menu button:focus-visible {
+  background: #dff5ff;
+  outline: 2px solid #60c7f2;
+  outline-offset: 1px;
+}
+
+.quick-read-out-menu .read-out-back {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.quick-timer-menu {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: 76%;
+  flex-direction: column;
+  gap: 7px;
+  align-items: stretch;
+  color: #fff;
+  font: 600 12px Arial, sans-serif;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.quick-timer-menu strong {
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+
+.quick-timer-label-form {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  text-align: left;
+}
+
+.quick-timer-label-form label {
+  font-size: 11px;
+}
+
+.quick-timer-label-form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #c6cbd7;
+  border-radius: 8px;
+  font: 12px Arial, sans-serif;
+}
+
+.quick-timer-menu button {
+  min-height: 31px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: #fff;
+  color: #252a38;
+  font: 600 11px Arial, sans-serif;
+  cursor: pointer;
+}
+
+.quick-timer-menu button:hover,
+.quick-timer-menu button:focus-visible {
+  background: #dff5ff;
+  outline: 2px solid #60c7f2;
+  outline-offset: 1px;
+}
+
+.quick-timer-menu .timer-back {
+  min-height: 25px;
+  padding: 3px 8px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.quick-custom-timer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quick-custom-timer input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid #c6cbd7;
+  border-radius: 8px;
+  font: 12px Arial, sans-serif;
+}
+
+.quick-timer-error {
+  color: #ffd1d1;
+  font-size: 10px;
+  font-weight: 400;
+}
+
 .quick-action {
   position: absolute;
   width: 34%;
@@ -88,6 +260,16 @@ canvas {
   top: 90%;
 }
 
+.add-reminder {
+  left: 17%;
+  top: 68%;
+}
+
+.read-out-action {
+  left: 83%;
+  top: 68%;
+}
+
 .sleep-action {
   left: 17%;
   top: 68%;
@@ -95,8 +277,8 @@ canvas {
 
 .quick-action-close {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 12%;
+  left: 86%;
   width: 34px;
   height: 34px;
   padding: 0;
@@ -165,36 +347,26 @@ canvas {
 
 .speech-bubble {
   position: absolute;
-
   top: 8px;
   left: 50%;
-
+  display: block;
+  width: min(280px, calc(100% - 16px));
+  max-height: 120px;
+  box-sizing: border-box;
   transform: translateX(-50%);
-
   opacity: 0;
   z-index: 99999;
-
+  overflow: hidden;
   background: #ffffff;
   color: #222222;
-
-  padding: 8px 14px;
-
+  padding: 8px 36px 8px 14px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 14px;
-
   font-family: Arial, sans-serif;
   font-size: 14px;
   font-weight: 600;
   line-height: 18px;
-
-  box-sizing: border-box;
-  max-width: calc(100% - 16px);
-  overflow-wrap: anywhere;
-  text-align: center;
-  white-space: normal;
-
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
-
   pointer-events: none;
   transform: translateX(-50%) translateY(6px) scale(0.92);
   transition:
@@ -202,8 +374,45 @@ canvas {
     transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.speech-bubble-text {
+  max-height: 92px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  text-align: left;
+  white-space: pre-wrap;
+  scrollbar-width: thin;
+  scrollbar-color: #b7b7c4 transparent;
+}
+
+.speech-stop {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #eeeef3;
+  color: #333340;
+  font: 20px/1 Arial, sans-serif;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.speech-stop:hover,
+.speech-stop:focus-visible {
+  background: #dedee8;
+  outline: 2px solid #8b5cf6;
+  outline-offset: 1px;
+}
+
 .speech-bubble.visible {
   opacity: 1;
+  pointer-events: auto;
   transform: translateX(-50%) translateY(0) scale(1);
 }
 
@@ -239,7 +448,8 @@ canvas {
 @media (prefers-reduced-motion: reduce) {
   canvas,
   .quick-action,
-  .speech-bubble {
+  .speech-bubble,
+  .speech-stop {
     animation: none;
     transition: none;
   }

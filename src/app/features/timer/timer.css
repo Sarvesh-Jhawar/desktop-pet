@@ -5,7 +5,8 @@
 header,
 .timer-heading,
 .add-fields,
-.timer-actions {
+.timer-actions,
+.quick-start-options {
   align-items: center;
   display: flex;
   gap: 8px;
@@ -32,6 +33,35 @@ header span,
   border-bottom: 1px solid var(--border-subtle);
   margin: 12px 0;
   padding: 12px 0 18px;
+}
+
+.quick-start {
+  margin-top: 16px;
+}
+
+.quick-start h3 {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.quick-start-options button {
+  padding: 8px 13px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  font: inherit;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease;
+}
+
+.quick-start-options button:hover {
+  border-color: var(--accent-end);
+  background: rgba(236, 72, 153, 0.14);
+  transform: translateY(-1px);
 }
 
 .add-timer h3 {
@@ -100,10 +130,15 @@ button:disabled {
   border-radius: 8px;
   padding: 14px;
   background: rgba(255, 255, 255, 0.035);
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
 }
 
 .timer-card.running {
   border-color: var(--accent-end);
+  animation: timer-running-glow 2.4s ease-in-out infinite;
 }
 
 .timer-card h3 {
@@ -111,11 +146,20 @@ button:disabled {
 }
 
 .clock {
+  display: inline-block;
   font-size: 32px;
   font-variant-numeric: tabular-nums;
   font-family: var(--font-heading);
   font-weight: 600;
   margin: 7px 0 2px;
+  cursor: ns-resize;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.clock:hover,
+.clock:focus-visible {
+  color: #fff;
+  transform: scale(1.025);
 }
 
 .status {
@@ -144,9 +188,30 @@ button:disabled {
 }
 
 input:focus-visible,
-button:focus-visible {
+button:focus-visible,
+.clock:focus-visible {
   outline: 2px solid var(--accent-end);
   outline-offset: 2px;
+}
+
+@keyframes timer-running-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(236, 72, 153, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 18px rgba(236, 72, 153, 0.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timer-card,
+  .clock,
+  .quick-start-options button {
+    animation: none;
+    transition: none;
+  }
 }
 
 @media (max-width: 540px) {

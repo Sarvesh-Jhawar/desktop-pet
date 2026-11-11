@@ -2,10 +2,12 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  OnDestroy,
   OnInit,
   inject,
   signal
 } from '@angular/core';
+import { listen } from '@tauri-apps/api/event';
 import { FormsModule } from '@angular/forms';
 import { ReminderStoreService } from '../../core/reminder-store.service';
 import { Reminder } from '../../shared/reminder.model';
@@ -17,16 +19,28 @@ import { Reminder } from '../../shared/reminder.model';
   templateUrl: './reminders.html',
   styleUrl: './reminders.css'
 })
-export class Reminders implements OnInit {
+export class Reminders implements OnInit, OnDestroy {
   private readonly store = inject(ReminderStoreService);
 
   reminders = signal<Reminder[]>([]);
   newTitle = '';
   newDateTime = '';
   newRepeatMinutes: number | null = null;
+  private unlistenReminders?: () => void;
 
   async ngOnInit(): Promise<void> {
     await this.refresh();
+    if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+      try {
+        this.unlistenReminders = await listen('reminders-updated', () => {
+          void this.refresh().catch(error => {
+            console.error('Failed to refresh reminders after an update:', error);
+          });
+        });
+      } catch (error) {
+        console.error('Failed to listen for reminder updates:', error);
+      }
+    }
   }
 
   async refresh(): Promise<void> {
@@ -83,5 +97,9 @@ export class Reminders implements OnInit {
   async delete(reminder: Reminder): Promise<void> {
     await this.store.delete(reminder.id);
     await this.refresh();
+  }
+
+  ngOnDestroy(): void {
+    this.unlistenReminders?.();
   }
 }
