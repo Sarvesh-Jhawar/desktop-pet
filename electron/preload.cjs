@@ -20,10 +20,20 @@ contextBridge.exposeInMainWorld('desktopPet', {
     ipcRenderer.on('window:moved', listener);
     return () => ipcRenderer.removeListener('window:moved', listener);
   },
+  onGlobalCursorMove: callback => {
+    const listener = (_ipcEvent, position) => callback(position);
+    ipcRenderer.on('cursor:global-move', listener);
+    ipcRenderer.invoke('cursor:subscribe').catch(error => {
+      console.error('Could not subscribe to global cursor movement:', error);
+    });
+    return () => ipcRenderer.removeListener('cursor:global-move', listener);
+  },
   onCloseRequested: callback => {
     const listener = () => callback();
     ipcRenderer.on('window:close-requested', listener);
     return () => ipcRenderer.removeListener('window:close-requested', listener);
   },
+  setIgnoreMouseEvents: ignore =>
+    ipcRenderer.invoke('window:set-ignore-mouse-events', { ignore }),
   moveDragging: (x, y) => ipcRenderer.invoke('window:move-dragging', { x, y })
 });

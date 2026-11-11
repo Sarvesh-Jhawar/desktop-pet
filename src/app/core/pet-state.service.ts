@@ -1,5 +1,9 @@
 import { Injectable } from '@angular/core';
-import { Rive, StateMachineInput } from '@rive-app/canvas';
+import {
+  Rive,
+  StateMachineInput,
+  ViewModelInstanceNumber
+} from '@rive-app/canvas';
 
 // These are product states. Milly's Rive file only has four real animations;
 // the remaining states are approximated with shell color and bubble text.
@@ -47,11 +51,13 @@ export class PetStateService {
   private currentState: PetState = 'idle';
   private defaultShellColor?: number;
   private dizzyTrigger?: StateMachineInput;
+  private dragX?: ViewModelInstanceNumber | null;
   private readonly healthTriggers = new Map<string, StateMachineInput>();
 
   attach(rive: Rive): void {
     this.rive = rive;
     this.defaultShellColor = rive.viewModelInstance?.color('shellColor')?.value;
+    this.dragX = rive.viewModelInstance?.number('dragX');
     this.dizzyTrigger = rive.stateMachineInputs('State Machine 1')
       ?.find(input => input.name === 'DizzyTrigger');
     for (const name of [
@@ -107,6 +113,12 @@ export class PetStateService {
     }
 
     console.info(`Rive input "${name}" is unavailable; using the health banner fallback.`);
+  }
+
+  updateDragX(x: number): void {
+    if (Number.isFinite(x) && this.dragX) {
+      this.dragX.value = x;
+    }
   }
 
   resetToIdle(): void {

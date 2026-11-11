@@ -20,10 +20,11 @@
         "height": 300,
 
         "transparent": true,
+        "backgroundColor": "#00000000",
         "decorations": false,
         "alwaysOnTop": true,
         "resizable": false,
-        "skipTaskbar": false,
+        "skipTaskbar": true,
 
         "shadow": false,
         "visible": true

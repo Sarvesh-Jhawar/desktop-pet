@@ -16,6 +16,9 @@ let speechRequestId = 0;
 let activeSpeechId;
 let speechSpeaking = false;
 let dragState;
+let globalCursorTimer;
+let lastGlobalCursor;
+let eyesFollowCursorEnabled = true;
 
 function emitToWindows(event, payload) {
   for (const window of windows) {
@@ -112,8 +115,8 @@ async function createDashboard() {
 async function createPet() {
   petWindow = createPreloadWindow({
     title: 'Desktop Pet',
-    width: 300,
-    height: 300,
+    width: 250,
+    height: 250,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -131,14 +134,47 @@ async function createPet() {
     }
   });
   await loadAppRoute(petWindow);
+  const savedSettings = await loadStore('settings.json');
+  eyesFollowCursorEnabled = savedSettings.eyesFollowCursor !== false;
   petWindow.on('ready-to-show', () => {
     console.info('Electron pet window is ready to show.');
   });
   petWindow.on('show', () => {
     console.info('Electron pet window shown at', petWindow.getBounds());
   });
-  petWindow.show();
-  petWindow.focus();
+  globalCursorTimer = setInterval(() => {
+    if (
+      !eyesFollowCursorEnabled ||
+      !petWindow ||
+      petWindow.isDestroyed() ||
+      !petWindow.isVisible()
+    ) return;
+
+    const bounds = petWindow.getBounds();
+    const cursor = screen.getCursorScreenPoint();
+    if (
+      cursor.x >= bounds.x &&
+      cursor.x <= bounds.x + bounds.width &&
+      cursor.y >= bounds.y &&
+      cursor.y <= bounds.y + bounds.height
+    ) {
+      lastGlobalCursor = undefined;
+      return;
+    }
+
+    if (
+      lastGlobalCursor &&
+      Math.abs(cursor.x - lastGlobalCursor.x) < 2 &&
+      Math.abs(cursor.y - lastGlobalCursor.y) < 2
+    ) return;
+
+    lastGlobalCursor = cursor;
+    petWindow.webContents.send('cursor:global-move', {
+      x: cursor.x - bounds.x,
+      y: cursor.y - bounds.y
+    });
+  }, 33);
+  petWindow.showInactive();
 }
 
 async function ensureDevServer() {
@@ -170,9 +206,20 @@ async function ensureDevServer() {
 }
 
 function configureIpc() {
+  ipcMain.handle('cursor:subscribe', () => {
+    lastGlobalCursor = undefined;
+  });
+
   ipcMain.handle('desktop:event', (_event, message) => {
     if (!message || typeof message.event !== 'string') {
       throw new Error('Invalid desktop event.');
+    }
+    if (message.event === 'eyes-follow-cursor-toggled') {
+      if (typeof message.payload !== 'boolean') {
+        throw new Error('Invalid eye cursor tracking setting.');
+      }
+      eyesFollowCursorEnabled = message.payload;
+      lastGlobalCursor = undefined;
     }
     emitToWindows(message.event, message.payload);
   });
@@ -189,7 +236,13 @@ function configureIpc() {
   });
 
   ipcMain.handle('open_dashboard', () => createDashboard());
-  ipcMain.handle('window:show', event => currentWindow(event).show());
+  ipcMain.handle('window:show', event => currentWindow(event).showInactive());
+  ipcMain.handle('window:set-ignore-mouse-events', (event, { ignore }) => {
+    if (typeof ignore !== 'boolean') {
+      throw new Error('Invalid mouse pass-through setting.');
+    }
+    currentWindow(event).setIgnoreMouseEvents(ignore, { forward: true });
+  });
   ipcMain.handle('window:focus', event => currentWindow(event).focus());
   ipcMain.handle('window:set-size', (event, { width, height }) =>
     currentWindow(event).setSize(Math.round(width), Math.round(height)));
@@ -310,7 +363,7 @@ function createTray() {
   tray.setToolTip('Milly Desktop Pet');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Open Dashboard', click: () => void createDashboard() },
-    { label: 'Show Pet', click: () => petWindow?.show() },
+    { label: 'Show Pet', click: () => petWindow?.showInactive() },
     { label: 'Hide Pet', click: () => petWindow?.hide() },
     { type: 'separator' },
     { label: 'Quit', click: () => { app.isQuitting = true; app.quit(); } }
@@ -324,7 +377,7 @@ app.whenReady().then(async () => {
   createTray();
   app.on('activate', () => {
     if (!petWindow || petWindow.isDestroyed()) void createPet();
-    else petWindow.show();
+    else petWindow.showInactive();
   });
 }).catch(error => {
   console.error('Electron startup failed:', error);
@@ -333,6 +386,7 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   app.isQuitting = true;
+  if (globalCursorTimer) clearInterval(globalCursorTimer);
   stopSpeech();
   if (devServer && !devServer.killed) devServer.kill();
 });

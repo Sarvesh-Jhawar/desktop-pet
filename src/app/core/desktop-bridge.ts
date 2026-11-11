@@ -13,7 +13,9 @@ interface ElectronBridge {
   ): Promise<UnlistenFn>;
   onWindowFocus(callback: (focused: boolean) => void): UnlistenFn;
   onWindowMoved(callback: (position: { x: number; y: number }) => void): UnlistenFn;
+  onGlobalCursorMove(callback: (position: { x: number; y: number }) => void): UnlistenFn;
   onCloseRequested(callback: () => void): UnlistenFn;
+  setIgnoreMouseEvents(ignore: boolean): Promise<void>;
   moveDragging(x: number, y: number): Promise<void>;
 }
 
@@ -127,6 +129,10 @@ export function getCurrentWindow() {
         ? window.desktopPet.moveDragging(x, y)
         : Promise.reject(new Error('Window dragging is unavailable in browser preview.')),
     stopDragging: () => invoke<void>('window:stop-dragging'),
+    setIgnoreMouseEvents: (ignore: boolean) =>
+      window.desktopPet
+        ? window.desktopPet.setIgnoreMouseEvents(ignore)
+        : Promise.reject(new Error('Mouse pass-through is unavailable in browser preview.')),
     onFocusChanged: (
       callback: (event: { payload: boolean }) => void
     ): Promise<UnlistenFn> => {
@@ -142,6 +148,12 @@ export function getCurrentWindow() {
       return Promise.resolve(
         window.desktopPet.onWindowMoved(position => callback({ payload: position }))
       );
+    },
+    onGlobalCursorMove: (
+      callback: (position: { x: number; y: number }) => void
+    ): UnlistenFn => {
+      if (!window.desktopPet) return () => {};
+      return window.desktopPet.onGlobalCursorMove(callback);
     },
     onCloseRequested: (callback: () => void): Promise<UnlistenFn> => {
       if (!window.desktopPet) return Promise.resolve(() => {});

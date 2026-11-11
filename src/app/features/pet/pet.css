@@ -68,6 +68,115 @@ canvas {
   backdrop-filter: blur(8px);
 }
 
+.quick-task-screen {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: 86%;
+  height: 84%;
+  flex-direction: column;
+  gap: 8px;
+  color: #fff;
+  font: 600 12px Arial, sans-serif;
+  transform: translate(-50%, -50%);
+}
+
+.quick-task-screen > strong {
+  padding-right: 24px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.quick-task-menu {
+  justify-content: center;
+}
+
+.quick-task-menu button {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: #fff;
+  color: #252a38;
+  font: 600 12px Arial, sans-serif;
+  cursor: pointer;
+}
+
+.quick-task-menu button:hover,
+.quick-task-menu button:focus-visible {
+  background: #dff5ff;
+  outline: 2px solid #60c7f2;
+  outline-offset: 1px;
+}
+
+.quick-task-menu .quick-task-back,
+.quick-task-back {
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.quick-task-list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 2px 4px;
+  list-style: none;
+}
+
+.quick-task-list li {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 4px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.quick-task-list input[type='checkbox'] {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.quick-task-list li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-task-list li.completed span {
+  color: rgba(255, 255, 255, 0.62);
+  text-decoration: line-through;
+}
+
+.quick-task-list .quick-task-empty {
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 400;
+}
+
+.quick-task-error {
+  color: #ffd1d1;
+  font-size: 10px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.quick-action-wheel.quick-task-open .quick-action-close {
+  top: 8px;
+  right: 8px;
+  left: auto;
+  transform: none;
+}
+
 .quick-reminder-form {
   position: absolute;
   top: 50%;
@@ -340,6 +449,12 @@ canvas {
   font: 600 12px Arial, sans-serif;
   text-align: center;
   transform: translate(-50%, -50%);
+}
+
+.quick-task-screen .quick-task-form {
+  position: static;
+  width: 100%;
+  transform: none;
 }
 
 .quick-task-form input {

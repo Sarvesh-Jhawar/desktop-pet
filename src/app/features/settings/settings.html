@@ -28,6 +28,15 @@
     <span>Sounds</span>
   </label>
 
+  <label class="setting-row">
+    <input
+      type="checkbox"
+      [checked]="eyesFollowCursor()"
+      (change)="toggleEyesFollowCursor()"
+    />
+    <span>Eyes follow cursor across the screen</span>
+  </label>
+
   <section class="speech-controls" aria-labelledby="speech-heading">
     <h2 id="speech-heading">Voice</h2>
     <div class="speech-actions">

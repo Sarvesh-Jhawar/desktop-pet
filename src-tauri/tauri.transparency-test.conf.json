@@ -1,0 +1,6 @@
+{
+  "build": {
+    "devUrl": "http://localhost:4201/transparency-test.html",
+    "beforeDevCommand": "npm run start -- --port 4201"
+  }
+}

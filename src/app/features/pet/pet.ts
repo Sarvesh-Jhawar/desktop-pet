@@ -94,6 +94,8 @@ export class Pet implements OnInit, OnDestroy {
 
   private windowDragging = false;
 
+  private mouseEventsIgnored = false;
+
   private readonly speechQueue: Array<{
     message: string;
     fallbackDurationMs: number;
@@ -113,6 +115,7 @@ export class Pet implements OnInit, OnDestroy {
 
   private riveLoaded = false;
   private backgroundRemovalFrame?: number;
+  private unlistenGlobalCursor?: () => void;
 
   @ViewChild('petCanvas', { static: true })
   canvasRef!: ElementRef<HTMLCanvasElement>;
@@ -137,6 +140,10 @@ export class Pet implements OnInit, OnDestroy {
 
   quickTaskMode = signal(false);
 
+  quickTaskAddMode = signal(false);
+
+  quickTaskCompleteMode = signal(false);
+
   quickTimerMinutes = 25;
 
   quickTimerLabel = '';
@@ -150,6 +157,10 @@ export class Pet implements OnInit, OnDestroy {
   quickReminderError = signal('');
 
   quickTaskTitle = '';
+
+  quickTasks = signal<Task[]>([]);
+
+  quickTaskError = signal('');
 
   quickActionPosition = signal({ x: 125, y: 125 });
 
@@ -476,6 +487,23 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     const canvas =
       this.canvasRef.nativeElement;
+
+    this.unlistenGlobalCursor =
+      getCurrentWindow().onGlobalCursorMove(({ x, y }) => {
+        const bounds = canvas.getBoundingClientRect();
+        if (x < 0 || y < 0 || x >= bounds.width || y >= bounds.height) {
+          this.setMouseEventsIgnored(true);
+        }
+        const localX = Math.max(1, Math.min(bounds.width - 1, x));
+        const localY = Math.max(1, Math.min(bounds.height - 1, y));
+        canvas.dispatchEvent(
+          new MouseEvent('mousemove', {
+            clientX: bounds.left + localX,
+            clientY: bounds.top + localY,
+            bubbles: false
+          })
+        );
+      });
 
     canvas.addEventListener(
       'contextmenu',
@@ -1123,6 +1151,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     );
 
     this.quickTaskMode.set(false);
+    this.quickTaskAddMode.set(false);
+    this.quickTaskCompleteMode.set(false);
     this.quickTimerMode.set(false);
     this.quickReminderMode.set(false);
     this.quickReadOutMode.set(false);
@@ -1147,7 +1177,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.quickTimerLabelMode.set(false);
     this.quickCustomTimerMode.set(false);
     this.quickTaskMode.set(false);
+    this.quickTaskAddMode.set(false);
+    this.quickTaskCompleteMode.set(false);
     this.quickTaskTitle = '';
+    this.quickTaskError.set('');
     this.quickTimerError.set('');
     this.quickReminderTitle = '';
     this.quickReminderError.set('');
@@ -1458,9 +1491,43 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     void this.enqueueSpeech(`Your ${label} timer has started.`, 3000);
   }
 
-  beginQuickTask(): void {
-    this.quickTaskMode.set(true);
+  async beginQuickTask(): Promise<void> {
+    try {
+      this.quickTasks.set(await this.taskStore.getAllTasks());
+      this.quickTaskError.set('');
+      this.quickTaskAddMode.set(false);
+      this.quickTaskCompleteMode.set(false);
+      this.quickTaskMode.set(true);
+    } catch (error) {
+      console.error('Failed to load tasks for the Tasks menu:', error);
+      this.showBubble('I could not load your tasks. Please try again.', 3000);
+    }
     this.quickTaskTitle = '';
+  }
+
+  openQuickAddTask(): void {
+    this.quickTaskError.set('');
+    this.quickTaskTitle = '';
+    this.quickTaskAddMode.set(true);
+    this.quickTaskCompleteMode.set(false);
+  }
+
+  async openQuickCompleteTasks(): Promise<void> {
+    this.quickTaskError.set('');
+    this.quickTaskAddMode.set(false);
+    this.quickTaskCompleteMode.set(true);
+    try {
+      this.quickTasks.set(await this.taskStore.getAllTasks());
+    } catch (error) {
+      console.error('Failed to load tasks to complete:', error);
+      this.quickTaskError.set('Could not load tasks. Please try again.');
+    }
+  }
+
+  backToQuickTaskMenu(): void {
+    this.quickTaskAddMode.set(false);
+    this.quickTaskCompleteMode.set(false);
+    this.quickTaskError.set('');
   }
 
   async addQuickTask(event: Event): Promise<void> {
@@ -1468,19 +1535,55 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     const title = this.quickTaskTitle.trim();
     if (!title) return;
 
+    this.quickTaskError.set('');
+    let createdTask: Task;
     try {
-      await this.taskStore.createTask({ title, priority: 'medium' });
-      try {
-        await emit('tasks-updated');
-      } catch (error) {
-        console.error('Task was saved, but other windows were not notified:', error);
-      }
-      this.closeQuickActions();
-      this.showBubble(`Added task: ${title}`, 2500);
+      createdTask = await this.taskStore.createTask({ title, priority: 'medium' });
     } catch (error) {
       console.error('Failed to add quick task:', error);
-      this.showBubble('I could not add that task. Please try again.', 3000);
-      this.closeQuickActions();
+      this.quickTaskError.set('Could not add that task. Please try again.');
+      return;
+    }
+
+    this.quickTasks.update(tasks => [...tasks, createdTask]);
+    this.quickTaskTitle = '';
+    try {
+      await emit('tasks-updated');
+    } catch (error) {
+      console.error('Task was saved, but other windows were not notified:', error);
+    }
+  }
+
+  async toggleQuickTask(task: Task): Promise<void> {
+    this.quickTaskError.set('');
+    let updated: Task | null;
+    try {
+      updated = await this.taskStore.toggleComplete(task.id);
+    } catch (error) {
+      console.error('Failed to update a task from the Tasks menu:', error);
+      this.quickTaskError.set('Could not update that task. Please try again.');
+      return;
+    }
+    if (!updated) {
+      this.quickTaskError.set('That task could not be updated. Please try again.');
+      return;
+    }
+
+    const updatedTask = updated;
+    this.quickTasks.update(tasks =>
+      tasks.map(current => current.id === updatedTask.id ? updatedTask : current)
+    );
+    try {
+      await emit('tasks-updated');
+    } catch (error) {
+      console.error('Task was updated, but other windows were not notified:', error);
+    }
+    if (updatedTask.completed) {
+      try {
+        await emit('task-completed', { title: updatedTask.title });
+      } catch (error) {
+        console.error('Task was completed, but the pet was not notified:', error);
+      }
     }
   }
 
@@ -1521,7 +1624,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     event: MouseEvent
   ): void => {
 
+    this.updateMousePassThrough(event);
+
     if (this.windowDragging) {
+      this.petState.updateDragX(event.screenX);
       void getCurrentWindow().moveDragging(event.screenX, event.screenY).catch(error => {
         console.error('Failed to move the pet window:', error);
       });
@@ -1568,6 +1674,34 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       console.error('Failed to start window dragging:', error);
     });
   };
+
+  private updateMousePassThrough(event: MouseEvent): void {
+    if (!this.isDesktopShell) return;
+
+    const target = event.target;
+    const onInteractiveOverlay =
+      target instanceof Element &&
+      Boolean(target.closest('.quick-action-wheel, .speech-bubble, .health-banner'));
+    const canvas = this.displayCanvasRef.nativeElement;
+    const bounds = canvas.getBoundingClientRect();
+    const x = Math.floor((event.clientX - bounds.left) * canvas.width / bounds.width);
+    const y = Math.floor((event.clientY - bounds.top) * canvas.height / bounds.height);
+    const insideCanvas = x >= 0 && y >= 0 && x < canvas.width && y < canvas.height;
+    const alpha = insideCanvas
+      ? canvas.getContext('2d')?.getImageData(x, y, 1, 1).data[3] ?? 0
+      : 0;
+
+    this.setMouseEventsIgnored(!onInteractiveOverlay && alpha <= 16);
+  }
+
+  private setMouseEventsIgnored(ignore: boolean): void {
+    if (!this.isDesktopShell || this.mouseEventsIgnored === ignore) return;
+    this.mouseEventsIgnored = ignore;
+    void getCurrentWindow().setIgnoreMouseEvents(ignore).catch(error => {
+      this.mouseEventsIgnored = !ignore;
+      console.error('Failed to update pet mouse pass-through:', error);
+    });
+  }
 
 
   /*
@@ -1696,9 +1830,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     const win = getCurrentWindow();
     console.log('Showing pet after task completion:', taskTitle);
     void win.show()
-      .then(() => win.setFocus())
-      .then(() => console.log('Pet window shown and focused'))
-      .catch(error => console.error('Failed to show or focus pet window:', error));
+      .then(() => console.log('Pet window shown without taking focus'))
+      .catch(error => console.error('Failed to show pet window:', error));
 
     console.log(
       'dizzyTrigger before fire:',
@@ -1735,8 +1868,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
           this.timerService.start(breakTimer.id);
           const win = getCurrentWindow();
           void win.show()
-            .then(() => win.setFocus())
-            .catch(error => console.error('Failed to show or focus pet after timer completion:', error));
+            .catch(error => console.error('Failed to show pet after timer completion:', error));
           return;
         }
         console.error('Could not start the five-minute micro-break timer.');
@@ -1751,7 +1883,6 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     const win = getCurrentWindow();
     await win.show();
-    await win.setFocus();
 
     this.petRules.setTemporaryOverride(true);
     this.petState.setState('celebrating', true);
@@ -1828,7 +1959,6 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   private async onReminderDue(reminder: Reminder): Promise<void> {
     const win = getCurrentWindow();
     await win.show();
-    await win.setFocus();
 
     this.petRules.setTemporaryOverride(true);
     this.petState.setState('waiting');
@@ -1933,6 +2063,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       this.backgroundRemovalFrame = undefined;
     }
 
+    if (this.mouseEventsIgnored) {
+      this.setMouseEventsIgnored(false);
+    }
+
     if (this.windowDragging && this.isDesktopShell) {
       void getCurrentWindow().stopDragging();
     }
@@ -2009,6 +2143,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.unlistenTimerRequestState?.();
     this.unlistenSoundsToggled?.();
     this.unlistenPetFocus?.();
+    this.unlistenGlobalCursor?.();
     this.health.stop();
     this.health.onHabitStarted = undefined;
     this.health.onHabitCompleted = undefined;

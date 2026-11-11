@@ -60,6 +60,7 @@
     <div
       #quickActionWheel
       class="quick-action-wheel"
+      [class.quick-task-open]="quickTaskMode()"
       role="dialog"
       aria-label="Milly quick actions"
       [style.left.px]="quickActionPosition().x"
@@ -168,22 +169,64 @@
           }
         </div>
       } @else if (quickTaskMode()) {
-        <form class="quick-task-form" (submit)="addQuickTask($event)">
-          <label for="quick-task-title">Quick task</label>
-          <input
-            id="quick-task-title"
-            name="quickTaskTitle"
-            type="text"
-            maxlength="120"
-            placeholder="What needs doing?"
-            autocomplete="off"
-            [(ngModel)]="quickTaskTitle"
-          />
-          <div class="quick-task-form-actions">
-            <button type="button" (click)="closeQuickActions()">Cancel</button>
-            <button type="submit" [disabled]="!quickTaskTitle.trim()">Add</button>
-          </div>
-        </form>
+        @if (quickTaskAddMode()) {
+          <section class="quick-task-screen" aria-labelledby="quick-task-add-title">
+            <strong id="quick-task-add-title">Add a task</strong>
+            <form class="quick-task-form" (submit)="addQuickTask($event)">
+              <input
+                id="quick-task-title"
+                name="quickTaskTitle"
+                type="text"
+                maxlength="120"
+                placeholder="What needs doing?"
+                aria-label="New task"
+                autocomplete="off"
+                [(ngModel)]="quickTaskTitle"
+              />
+              @if (quickTaskError()) {
+                <span class="quick-task-error" role="alert">{{ quickTaskError() }}</span>
+              }
+              <div class="quick-task-form-actions">
+                <button type="button" (click)="backToQuickTaskMenu()">Back</button>
+                <button type="submit" [disabled]="!quickTaskTitle.trim()">Add</button>
+              </div>
+            </form>
+          </section>
+        } @else if (quickTaskCompleteMode()) {
+          <section class="quick-task-screen" aria-labelledby="quick-task-complete-title">
+            <strong id="quick-task-complete-title">Complete a task</strong>
+            <ul class="quick-task-list">
+              @for (task of quickTasks(); track task.id) {
+                <li [class.completed]="task.completed">
+                  <input
+                    type="checkbox"
+                    [checked]="task.completed"
+                    [attr.aria-label]="(task.completed ? 'Reopen ' : 'Complete ') + task.title"
+                    (change)="toggleQuickTask(task)"
+                  />
+                  <span>{{ task.title }}</span>
+                </li>
+              } @empty {
+                <li class="quick-task-empty">No tasks yet. Add one to get started.</li>
+              }
+            </ul>
+            @if (quickTaskError()) {
+              <span class="quick-task-error" role="alert">{{ quickTaskError() }}</span>
+            }
+            <button type="button" class="quick-task-back" (click)="backToQuickTaskMenu()">
+              Back
+            </button>
+          </section>
+        } @else {
+          <section class="quick-task-screen quick-task-menu" aria-labelledby="quick-tasks-title">
+            <strong id="quick-tasks-title">Tasks</strong>
+            <button type="button" (click)="openQuickAddTask()">Add Task</button>
+            <button type="button" (click)="openQuickCompleteTasks()">Complete Task</button>
+            <button type="button" class="quick-task-back" (click)="quickTaskMode.set(false)">
+              Back
+            </button>
+          </section>
+        }
       } @else {
         <button class="quick-action start-focus" (click)="openQuickTimerOptions()">
           Start timer
@@ -192,7 +235,7 @@
           Motivate me
         </button>
         <button class="quick-action add-task" (click)="beginQuickTask()">
-          Add quick task
+          Tasks
         </button>
         <button class="quick-action add-reminder" (click)="openQuickReminderForm()">
           Add reminder

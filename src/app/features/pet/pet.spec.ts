@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { Pet } from './pet';
 import { Task } from '../../shared/task.model';
 import { MotivationalQuoteService } from '../../core/motivational-quote.service';
+import { TaskStoreService } from '../../core/task-store.service';
 import type { MotivationalQuote } from '../../core/motivational-quote.service';
 
 describe('Pet', () => {
@@ -76,6 +77,61 @@ describe('Pet', () => {
     fixture.detectChanges();
 
     expect(component.quickActionsVisible()).toBe(false);
+  });
+
+  it('shows separate add and complete task screens with back navigation', async () => {
+    const taskStore = TestBed.inject(TaskStoreService);
+    const task: Task = {
+      id: 'task-1',
+      title: 'Prepare the dashboard',
+      completed: false,
+      priority: 'medium',
+      createdAt: new Date(0).toISOString()
+    };
+    const addedTask: Task = {
+      ...task,
+      id: 'task-2',
+      title: 'Review the dashboard'
+    };
+    vi.spyOn(taskStore, 'getAllTasks')
+      .mockResolvedValueOnce([task])
+      .mockResolvedValue([task, addedTask]);
+    vi.spyOn(taskStore, 'createTask').mockResolvedValue(addedTask);
+    vi.spyOn(taskStore, 'toggleComplete').mockResolvedValue({
+      ...task,
+      completed: true
+    });
+
+    await component.beginQuickTask();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Add Task');
+    expect(fixture.nativeElement.textContent).toContain('Complete Task');
+
+    component.openQuickAddTask();
+    fixture.detectChanges();
+    component.quickTaskTitle = 'Review the dashboard';
+    await component.addQuickTask(new Event('submit'));
+    fixture.detectChanges();
+
+    expect(component.quickTaskMode()).toBe(true);
+    expect(component.quickTaskAddMode()).toBe(true);
+    expect(component.quickTasks().some(candidate => candidate.id === addedTask.id)).toBe(true);
+
+    component.backToQuickTaskMenu();
+    await component.openQuickCompleteTasks();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Review the dashboard');
+
+    await component.toggleQuickTask(task);
+    fixture.detectChanges();
+
+    const checkbox = fixture.nativeElement.querySelector(
+      '[aria-label="Reopen Prepare the dashboard"]'
+    ) as HTMLInputElement;
+    expect(checkbox.checked).toBe(true);
+    expect(component.quickTaskMode()).toBe(true);
+    expect(component.quickTaskCompleteMode()).toBe(true);
   });
 
   it('shows a quote from the motivational quote library', async () => {

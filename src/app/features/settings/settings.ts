@@ -22,6 +22,7 @@ export class Settings implements OnInit {
   autostartEnabled = signal(false);
   alwaysOnTop = signal(true);
   soundsEnabled = signal(false);
+  eyesFollowCursor = signal(true);
   currentSize = signal<PetSize>('medium');
 
   async ngOnInit(): Promise<void> {
@@ -38,6 +39,9 @@ export class Settings implements OnInit {
 
       const savedSoundsEnabled = await store.get<boolean>('soundsEnabled');
       this.soundsEnabled.set(savedSoundsEnabled ?? false);
+
+      const savedEyesFollowCursor = await store.get<boolean>('eyesFollowCursor');
+      this.eyesFollowCursor.set(savedEyesFollowCursor ?? true);
 
       const savedSize = await store.get<PetSize>('petSize');
       this.currentSize.set(savedSize ?? 'medium');
@@ -91,6 +95,26 @@ export class Settings implements OnInit {
       await emit('sounds-toggled', nextValue);
     } catch (error) {
       console.error('Failed to sync sound setting:', error);
+    }
+  }
+
+  async toggleEyesFollowCursor(): Promise<void> {
+    const nextValue = !this.eyesFollowCursor();
+
+    try {
+      const store = await load('settings.json', { autoSave: false });
+      await store.set('eyesFollowCursor', nextValue);
+      await store.save();
+      this.eyesFollowCursor.set(nextValue);
+    } catch (error) {
+      console.error('Failed to save eye cursor tracking setting:', error);
+      return;
+    }
+
+    try {
+      await emit('eyes-follow-cursor-toggled', nextValue);
+    } catch (error) {
+      console.error('Failed to sync eye cursor tracking setting:', error);
     }
   }
 

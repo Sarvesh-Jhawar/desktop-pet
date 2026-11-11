@@ -49,6 +49,14 @@ pub fn run() {
             speech::speech_is_speaking
         ])
         .setup(|app| {
+            let pet_window = app.get_webview_window("main").ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Pet window 'main' is not configured",
+                )
+            })?;
+            pet_window.set_background_color(Some(tauri::webview::Color(0, 0, 0, 0)))?;
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
