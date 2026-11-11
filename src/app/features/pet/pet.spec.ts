@@ -37,6 +37,35 @@ describe('Pet', () => {
     expect(component).toBeTruthy();
   });
 
+  it('keeps quick actions at Medium size as the pet changes size', () => {
+    const canvases = Array.from(
+      fixture.nativeElement.querySelectorAll('canvas')
+    ) as HTMLCanvasElement[];
+    component.quickActionsVisible.set(true);
+    const sizes = [
+      ['small', 150],
+      ['medium', 250],
+      ['large', 350]
+    ] as const;
+
+    for (const [size, pixels] of sizes) {
+      component['applyPetSize'](size);
+      fixture.detectChanges();
+
+      expect(component.quickActionDiameter).toBe(220);
+      const quickActionWheel = fixture.nativeElement.querySelector(
+        '.quick-action-wheel'
+      ) as HTMLElement;
+      expect(quickActionWheel.style.width).toBe('220px');
+      for (const canvas of canvases) {
+        expect(canvas.width).toBe(pixels);
+        expect(canvas.height).toBe(pixels);
+        expect(canvas.style.width).toBe(`${pixels}px`);
+        expect(canvas.style.height).toBe(`${pixels}px`);
+      }
+    }
+  });
+
   it('includes every pending task in utterances within the engine text limit', () => {
     const tasks: Task[] = Array.from({ length: 30 }, (_, index) => ({
       id: `${index}`,
@@ -59,8 +88,8 @@ describe('Pet', () => {
     const canvas = fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement;
     const contextMenu = new MouseEvent('contextmenu', {
       button: 2,
-      clientX: 125,
-      clientY: 125,
+      clientX: 100,
+      clientY: 75,
       bubbles: true,
       cancelable: true
     });
@@ -71,7 +100,12 @@ describe('Pet', () => {
 
     expect(contextMenu.defaultPrevented).toBe(true);
     expect(component.quickActionsVisible()).toBe(true);
-    expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeTruthy();
+    const quickActionWheel = fixture.nativeElement.querySelector(
+      '[role="dialog"]'
+    ) as HTMLElement;
+    expect(quickActionWheel).toBeTruthy();
+    expect(quickActionWheel.style.left).toBe('40%');
+    expect(quickActionWheel.style.top).toBe('30%');
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     fixture.detectChanges();
@@ -132,6 +166,17 @@ describe('Pet', () => {
     expect(checkbox.checked).toBe(true);
     expect(component.quickTaskMode()).toBe(true);
     expect(component.quickTaskCompleteMode()).toBe(true);
+  });
+
+  it('clears the task loading error when a retry succeeds', async () => {
+    const taskStore = TestBed.inject(TaskStoreService);
+    vi.spyOn(taskStore, 'getAllTasks').mockResolvedValue([]);
+    component.quickActionError.set('Could not load tasks. Please try again.');
+
+    await component.beginQuickTask();
+
+    expect(component.quickActionError()).toBe('');
+    expect(component.quickTaskMode()).toBe(true);
   });
 
   it('shows a quote from the motivational quote library', async () => {

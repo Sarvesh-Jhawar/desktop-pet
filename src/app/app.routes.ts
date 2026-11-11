@@ -9,6 +9,7 @@ import { Timer } from './features/timer/timer';
 
 export const routes: Routes = [
 	{ path: '', component: Pet },
+	{ path: 'quick-actions', component: Pet },
 	{ path: 'dashboard', component: Dashboard },
 	{ path: 'settings', component: Settings },
 	{ path: 'tasks', component: TaskList },

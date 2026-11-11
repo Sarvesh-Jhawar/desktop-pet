@@ -13,6 +13,18 @@
   overflow: visible;
 }
 
+.pet-container.quick-actions-overlay {
+  width: 240px;
+  height: 240px;
+  overflow: hidden;
+}
+
+.pet-container.quick-actions-overlay canvas,
+.pet-container.quick-actions-overlay .speech-bubble,
+.pet-container.quick-actions-overlay .health-banner {
+  display: none;
+}
+
 .pet-container.transparency-test-mode canvas {
   display: none;
 }
@@ -57,8 +69,10 @@ canvas {
 
 .quick-action-wheel {
   position: absolute;
+  top: 50%;
+  left: 50%;
   z-index: 100000;
-  width: min(240px, calc(100vw - 8px), calc(100vh - 8px));
+  container-type: inline-size;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   border: 1px solid rgba(255, 255, 255, 0.9);
@@ -66,6 +80,17 @@ canvas {
   background: rgba(34, 39, 54, 0.94);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
   backdrop-filter: blur(8px);
+}
+
+.quick-action-error {
+  position: absolute;
+  bottom: 8%;
+  left: 50%;
+  width: 76%;
+  color: #ffd1d1;
+  font: 600 11px Arial, sans-serif;
+  text-align: center;
+  transform: translateX(-50%);
 }
 
 .quick-task-screen {
@@ -171,8 +196,8 @@ canvas {
 }
 
 .quick-action-wheel.quick-task-open .quick-action-close {
-  top: 8px;
-  right: 8px;
+  top: 3%;
+  right: 3%;
   left: auto;
   transform: none;
 }
@@ -352,13 +377,13 @@ canvas {
 .quick-action {
   position: absolute;
   width: 34%;
-  min-height: 42px;
+  min-height: clamp(34px, 17.5cqw, 58px);
   padding: 5px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 16px;
   background: #fff;
   color: #252a38;
-  font: 600 clamp(9px, 3.4vw, 12px) / 1.15 Arial, sans-serif;
+  font: 600 clamp(9px, 3.4cqw, 16px) / 1.15 Arial, sans-serif;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   transform: translate(-50%, -50%);
@@ -417,14 +442,14 @@ canvas {
   position: absolute;
   top: 12%;
   left: 86%;
-  width: 34px;
-  height: 34px;
+  width: clamp(26px, 13.6cqw, 46px);
+  height: clamp(26px, 13.6cqw, 46px);
   padding: 0;
   border: 0;
   border-radius: 50%;
   background: #596176;
   color: #fff;
-  font-size: 23px;
+  font-size: clamp(18px, 9.2cqw, 30px);
   line-height: 1;
   cursor: pointer;
   transform: translate(-50%, -50%);

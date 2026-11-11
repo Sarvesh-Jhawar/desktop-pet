@@ -7,8 +7,11 @@ const path = require('node:path');
 const DEV_URL = 'http://localhost:4200';
 const windows = new Set();
 const stores = new Map();
+const QUICK_ACTIONS_WINDOW_SIZE = 240;
 let petWindow;
 let dashboardWindow;
+let quickActionsWindow;
+let quickActionsWindowLoad;
 let tray;
 let devServer;
 let speechProcess;
@@ -177,6 +180,82 @@ async function createPet() {
   petWindow.showInactive();
 }
 
+async function openQuickActions(centerOnPet = false) {
+  let anchor = screen.getCursorScreenPoint();
+  if (centerOnPet && petWindow && !petWindow.isDestroyed()) {
+    const bounds = petWindow.getBounds();
+    anchor = {
+      x: bounds.x + bounds.width / 2,
+      y: bounds.y + bounds.height / 2
+    };
+  }
+  const workArea = screen.getDisplayNearestPoint(anchor).workArea;
+  const x = Math.min(
+    Math.max(Math.round(anchor.x - QUICK_ACTIONS_WINDOW_SIZE / 2), workArea.x),
+    workArea.x + workArea.width - QUICK_ACTIONS_WINDOW_SIZE
+  );
+  const y = Math.min(
+    Math.max(Math.round(anchor.y - QUICK_ACTIONS_WINDOW_SIZE / 2), workArea.y),
+    workArea.y + workArea.height - QUICK_ACTIONS_WINDOW_SIZE
+  );
+  const bounds = {
+    x,
+    y,
+    width: QUICK_ACTIONS_WINDOW_SIZE,
+    height: QUICK_ACTIONS_WINDOW_SIZE
+  };
+
+  if (quickActionsWindow && !quickActionsWindow.isDestroyed()) {
+    quickActionsWindow.setBounds(bounds);
+    if (quickActionsWindowLoad) await quickActionsWindowLoad;
+    if (quickActionsWindow && !quickActionsWindow.isDestroyed()) {
+      quickActionsWindow.show();
+      quickActionsWindow.focus();
+    }
+    return;
+  }
+
+  const overlay = createPreloadWindow({
+    title: 'Milly Quick Actions',
+    ...bounds,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    backgroundColor: '#00000000',
+    show: false
+  });
+  quickActionsWindow = overlay;
+  overlay.on('blur', () => {
+    if (!overlay.isDestroyed()) overlay.close();
+  });
+  overlay.on('closed', () => {
+    if (quickActionsWindow === overlay) {
+      quickActionsWindow = undefined;
+      quickActionsWindowLoad = undefined;
+    }
+  });
+
+  quickActionsWindowLoad = loadAppRoute(overlay, 'quick-actions');
+  try {
+    await quickActionsWindowLoad;
+  } catch (error) {
+    if (quickActionsWindow === overlay) {
+      quickActionsWindow = undefined;
+      quickActionsWindowLoad = undefined;
+    }
+    if (!overlay.isDestroyed()) overlay.destroy();
+    throw error;
+  }
+  if (quickActionsWindow === overlay && !overlay.isDestroyed()) {
+    quickActionsWindowLoad = undefined;
+    overlay.show();
+    overlay.focus();
+  }
+}
+
 async function ensureDevServer() {
   try {
     const response = await fetch(DEV_URL);
@@ -236,6 +315,19 @@ function configureIpc() {
   });
 
   ipcMain.handle('open_dashboard', () => createDashboard());
+  ipcMain.handle('quick-actions:open', (event, args) => {
+    if (currentWindow(event) !== petWindow) {
+      throw new Error('Only the pet window can open Quick Actions.');
+    }
+    return openQuickActions(args?.centerOnPet === true);
+  });
+  ipcMain.handle('quick-actions:close', event => {
+    const window = currentWindow(event);
+    if (window !== quickActionsWindow) {
+      throw new Error('Only the Quick Actions window can close itself.');
+    }
+    window.close();
+  });
   ipcMain.handle('window:show', event => currentWindow(event).showInactive());
   ipcMain.handle('window:set-ignore-mouse-events', (event, { ignore }) => {
     if (typeof ignore !== 'boolean') {

@@ -1,4 +1,8 @@
-<div class="pet-container" [class.transparency-test-mode]="transparencyTestMode">
+<div
+  class="pet-container"
+  [class.transparency-test-mode]="transparencyTestMode"
+  [class.quick-actions-overlay]="quickActionsOverlay"
+>
   @if (transparencyTestMode) {
     <div class="transparency-test-marker" aria-label="Transparency test marker"></div>
   }
@@ -63,8 +67,9 @@
       [class.quick-task-open]="quickTaskMode()"
       role="dialog"
       aria-label="Milly quick actions"
-      [style.left.px]="quickActionPosition().x"
-      [style.top.px]="quickActionPosition().y"
+      [style.width.px]="quickActionDiameter"
+      [style.left]="quickActionPosition().x + '%'"
+      [style.top]="quickActionPosition().y + '%'"
       (contextmenu)="$event.preventDefault()"
     >
       @if (quickReadOutMode()) {
@@ -246,6 +251,9 @@
         <button class="quick-action dashboard-action" (click)="openDashboardFromWheel()">
           Dashboard
         </button>
+      }
+      @if (quickActionError()) {
+        <span class="quick-action-error" role="alert">{{ quickActionError() }}</span>
       }
       <button
         class="quick-action-close"

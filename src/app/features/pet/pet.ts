@@ -46,12 +46,19 @@ import {
 import { Task } from '../../shared/task.model';
 
 type PetSize = 'small' | 'medium' | 'large';
+type QuickActionCommand =
+  | { action: 'start-timer'; duration: number; label: string }
+  | { action: 'motivate' }
+  | { action: 'read-out'; category: 'tasks' | 'timers' | 'reminders' }
+  | { action: 'reminder-added'; title: string };
 
 const SIZE_MAP: Record<PetSize, number> = {
   small: 150,
   medium: 250,
   large: 350
 };
+
+const QUICK_ACTION_DIAMETER = Math.round(SIZE_MAP.medium * 0.88);
 
 const SPEECH_BUBBLE_SYNC_DELAY_MS = 180;
 @Component({
@@ -88,6 +95,10 @@ export class Pet implements OnInit, OnDestroy {
 
   private readonly isDesktopShell =
     isDesktopRuntime();
+
+  readonly quickActionsOverlay =
+    this.isDesktopShell &&
+    globalThis.location.hash.replace(/^#\/?/, '').split('?')[0] === 'quick-actions';
 
   readonly transparencyTestMode =
     new URLSearchParams(globalThis.location.search).get('transparencyTest') === '1';
@@ -162,7 +173,11 @@ export class Pet implements OnInit, OnDestroy {
 
   quickTaskError = signal('');
 
-  quickActionPosition = signal({ x: 125, y: 125 });
+  quickActionError = signal('');
+
+  readonly quickActionDiameter = QUICK_ACTION_DIAMETER;
+
+  quickActionPosition = signal({ x: 50, y: 50 });
 
 
   /*
@@ -212,6 +227,8 @@ export class Pet implements OnInit, OnDestroy {
 
   private unlistenPetFocus?: () => void;
 
+  private unlistenQuickActionCommand?: () => void;
+
 
   /*
    * =========================================================
@@ -242,6 +259,16 @@ export class Pet implements OnInit, OnDestroy {
    */
 
   async ngOnInit(): Promise<void> {
+
+    if (this.quickActionsOverlay) {
+      this.quickActionsVisible.set(true);
+      window.addEventListener('pointerdown', this.onGlobalPointerDown);
+      window.addEventListener('keydown', this.onQuickActionsKeyDown);
+      setTimeout(() => {
+        this.quickActionWheelRef?.nativeElement.querySelector('button')?.focus();
+      });
+      return;
+    }
 
     if (this.isDesktopShell) {
       this.health.onHabitStarted = habit => this.onHealthHabitStarted(habit);
@@ -346,6 +373,14 @@ export class Pet implements OnInit, OnDestroy {
       this.unlistenTimerRequestState = await listen('timer-request-state', () => {
         void emit('timer-tick', this.timerService.getState());
       });
+      this.unlistenQuickActionCommand = await listen<QuickActionCommand>(
+        'quick-action-command',
+        event => {
+          void this.handleQuickActionCommand(event.payload).catch(error => {
+            console.error('Failed to handle a Quick Actions command:', error);
+          });
+        }
+      );
     }
 
     /*
@@ -1061,24 +1096,17 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       size;
 
 
-    const canvas =
-      this.canvasRef.nativeElement;
+    const canvases = [
+      this.canvasRef.nativeElement,
+      this.displayCanvasRef.nativeElement
+    ];
 
-
-    canvas.style.width =
-      `${px}px`;
-
-
-    canvas.style.height =
-      `${px}px`;
-
-
-    /*
-     * Update actual drawing surface.
-     */
-
-    canvas.width = px;
-    canvas.height = px;
+    for (const canvas of canvases) {
+      canvas.style.width = `${px}px`;
+      canvas.style.height = `${px}px`;
+      canvas.width = px;
+      canvas.height = px;
+    }
 
     if (this.isDesktopShell) {
       void getCurrentWindow()
@@ -1133,22 +1161,25 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.openQuickActionsAt(event.clientX, event.clientY);
   };
 
-  private openQuickActionsAt(clientX: number, clientY: number): void {
-    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    const diameter = Math.min(
-      240,
-      Math.max(110, window.innerWidth - 8),
-      Math.max(110, window.innerHeight - 8)
-    );
-    const radius = diameter / 2;
-    const x = Math.min(
-      Math.max(clientX - rect.left, radius + 4),
-      rect.width - radius - 4
-    );
-    const y = Math.min(
-      Math.max(clientY - rect.top, radius + 4),
-      rect.height - radius - 4
-    );
+  private openQuickActionsAt(
+    clientX: number,
+    clientY: number,
+    centerOnPet = false
+  ): void {
+    if (this.isDesktopShell && !this.quickActionsOverlay) {
+      void invoke('quick-actions:open', { centerOnPet }).catch(error => {
+        console.error('Failed to open Quick Actions:', error);
+        this.showBubble('I could not open Quick Actions. Please try again.', 3000);
+      });
+      return;
+    }
+
+    const canvas = this.canvasRef.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width || canvas.clientWidth || canvas.width;
+    const height = rect.height || canvas.clientHeight || canvas.height;
+    const x = width > 0 ? ((clientX - rect.left) / width) * 100 : 50;
+    const y = height > 0 ? ((clientY - rect.top) / height) * 100 : 50;
 
     this.quickTaskMode.set(false);
     this.quickTaskAddMode.set(false);
@@ -1162,6 +1193,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.quickTimerError.set('');
     this.quickReminderTitle = '';
     this.quickReminderError.set('');
+    this.quickActionError.set('');
     this.quickActionPosition.set({ x, y });
     this.quickActionsVisible.set(true);
     setTimeout(() => {
@@ -1170,6 +1202,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   }
 
   closeQuickActions(): void {
+    const closeOverlay = this.quickActionsOverlay && this.quickActionsVisible();
     this.quickActionsVisible.set(false);
     this.quickTimerMode.set(false);
     this.quickReminderMode.set(false);
@@ -1184,6 +1217,12 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.quickTimerError.set('');
     this.quickReminderTitle = '';
     this.quickReminderError.set('');
+    this.quickActionError.set('');
+    if (closeOverlay) {
+      void invoke('quick-actions:close').catch(error => {
+        console.error('Failed to close Quick Actions:', error);
+      });
+    }
   }
 
   private onGlobalPointerDown = (event: PointerEvent): void => {
@@ -1202,8 +1241,11 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       event.target === this.canvasRef.nativeElement
     ) {
       event.preventDefault();
-      const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-      this.openQuickActionsAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      const canvas = this.canvasRef.nativeElement;
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width || canvas.clientWidth || canvas.width;
+      const height = rect.height || canvas.clientHeight || canvas.height;
+      this.openQuickActionsAt(rect.left + width / 2, rect.top + height / 2, true);
       return;
     }
 
@@ -1262,6 +1304,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       } catch (error) {
         console.error('Reminder was saved, but other windows were not notified:', error);
       }
+      if (this.quickActionsOverlay) {
+        await this.dispatchQuickAction({ action: 'reminder-added', title });
+        return;
+      }
       this.closeQuickActions();
       this.showBubble(`I’ll remind you: ${title}`, 3000);
     } catch (error) {
@@ -1283,6 +1329,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   }
 
   async readOutTasks(): Promise<void> {
+    if (this.quickActionsOverlay) {
+      await this.dispatchQuickAction({ action: 'read-out', category: 'tasks' });
+      return;
+    }
     this.closeQuickActions();
     const generation = await this.replaceSpeechQueue();
     try {
@@ -1308,6 +1358,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   }
 
   async readOutTimers(): Promise<void> {
+    if (this.quickActionsOverlay) {
+      await this.dispatchQuickAction({ action: 'read-out', category: 'timers' });
+      return;
+    }
     this.closeQuickActions();
     const generation = await this.replaceSpeechQueue();
     const timers = this.timerService.getState();
@@ -1323,6 +1377,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   }
 
   async readOutReminders(): Promise<void> {
+    if (this.quickActionsOverlay) {
+      await this.dispatchQuickAction({ action: 'read-out', category: 'reminders' });
+      return;
+    }
     this.closeQuickActions();
     const generation = await this.replaceSpeechQueue();
     try {
@@ -1478,6 +1536,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     const minutes = this.quickTimerMinutes;
     const duration = minutes * 60;
+    if (this.quickActionsOverlay) {
+      await this.dispatchQuickAction({ action: 'start-timer', duration, label });
+      return;
+    }
     try {
       this.timerService.startWithLabel(duration, label);
     } catch (error) {
@@ -1492,6 +1554,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   }
 
   async beginQuickTask(): Promise<void> {
+    this.quickActionError.set('');
     try {
       this.quickTasks.set(await this.taskStore.getAllTasks());
       this.quickTaskError.set('');
@@ -1500,6 +1563,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       this.quickTaskMode.set(true);
     } catch (error) {
       console.error('Failed to load tasks for the Tasks menu:', error);
+      if (this.quickActionsOverlay) {
+        this.quickActionError.set('Could not load tasks. Please try again.');
+        return;
+      }
       this.showBubble('I could not load your tasks. Please try again.', 3000);
     }
     this.quickTaskTitle = '';
@@ -1587,7 +1654,54 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     }
   }
 
+  private async dispatchQuickAction(command: QuickActionCommand): Promise<void> {
+    this.quickActionError.set('');
+    try {
+      await emit('quick-action-command', command);
+      this.closeQuickActions();
+    } catch (error) {
+      console.error('Failed to send a Quick Actions command:', error);
+      this.quickActionError.set('Could not complete that action. Please try again.');
+    }
+  }
+
+  private async handleQuickActionCommand(command: QuickActionCommand): Promise<void> {
+    switch (command.action) {
+      case 'start-timer':
+        try {
+          this.timerService.startWithLabel(command.duration, command.label);
+        } catch (error) {
+          console.error('Could not start the quick timer:', error);
+          this.showBubble('I could not start that timer. Please try again.', 3000);
+          return;
+        }
+        void this.enqueueSpeech(`Your ${command.label} timer has started.`, 3000);
+        return;
+      case 'motivate':
+        await this.motivate();
+        return;
+      case 'read-out':
+        if (command.category === 'tasks') await this.readOutTasks();
+        else if (command.category === 'timers') await this.readOutTimers();
+        else await this.readOutReminders();
+        return;
+      case 'reminder-added':
+        this.showBubble(`I’ll remind you: ${command.title}`, 3000);
+        return;
+    }
+  }
+
   async openDashboardFromWheel(): Promise<void> {
+    if (this.quickActionsOverlay) {
+      try {
+        await invoke('open_dashboard');
+      } catch (error) {
+        console.error('Failed to open the Dashboard:', error);
+        this.quickActionError.set('Could not open the Dashboard. Please try again.');
+      }
+      return;
+    }
+
     try {
       await invoke('open_dashboard');
       this.closeQuickActions();
@@ -1599,6 +1713,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   }
 
   async motivate(): Promise<void> {
+    if (this.quickActionsOverlay) {
+      await this.dispatchQuickAction({ action: 'motivate' });
+      return;
+    }
     this.closeQuickActions();
     try {
       const quote = await this.motivationalQuotes.next();
@@ -2141,6 +2259,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     this.unlistenTimerCommand?.();
     this.unlistenTimerRequestState?.();
+    this.unlistenQuickActionCommand?.();
     this.unlistenSoundsToggled?.();
     this.unlistenPetFocus?.();
     this.unlistenGlobalCursor?.();
