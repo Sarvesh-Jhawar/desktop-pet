@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { emit } from '@tauri-apps/api/event';
+import { emit } from './desktop-bridge';
 import { ReminderStoreService } from './reminder-store.service';
 import { Reminder } from '../shared/reminder.model';
 

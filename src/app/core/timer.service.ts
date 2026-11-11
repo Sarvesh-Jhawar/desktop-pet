@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { emit } from '@tauri-apps/api/event';
+import { emit } from './desktop-bridge';
 
 export type TimerStatus = 'idle' | 'running' | 'paused' | 'completed';
 

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { emit, listen } from '@tauri-apps/api/event';
+import { emit, listen } from '../../core/desktop-bridge';
 import { TimerState } from '../../core/timer.service';
 
 @Component({

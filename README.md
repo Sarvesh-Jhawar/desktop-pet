@@ -1,6 +1,6 @@
 # Desktop Pet
 
-Desktop Pet is a desktop companion application built with Angular and Tauri. It gives you a small interactive virtual pet that can help with daily routines, reminders, timer tracking, and simple productivity habits while staying on your screen.
+Desktop Pet is an Angular desktop companion application with an Electron shell. It provides an interactive virtual pet, reminders, timers, tasks, speech, and productivity habits.
 
 ## Features
 
@@ -10,14 +10,14 @@ Desktop Pet is a desktop companion application built with Angular and Tauri. It 
 - Focus timer and productivity tracking
 - Motivational quotes and pet behavior responses
 - Speech synthesis support for voice interactions
-- Desktop app packaging using Tauri
+- Frameless transparent pet window, always-on-top behavior, system tray, notifications, and autostart using Electron
 
 ## Tech Stack
 
 - Angular 21
 - TypeScript
 - RxJS
-- Tauri 2 / Rust
+- Electron
 - Python speech engine for local text-to-speech
 - Vitest for frontend testing
 
@@ -26,9 +26,8 @@ Desktop Pet is a desktop companion application built with Angular and Tauri. It 
 Before you start, make sure you have the following installed:
 
 - Node.js 20+ and npm
-- Rust toolchain (for Tauri)
 - Python 3.12 (recommended for the speech engine)
-- A Windows environment is recommended because the project includes Windows-specific Tauri and speech engine setup
+- Windows is recommended for the desktop shell and local speech engine
 
 ## Quick Start
 
@@ -38,38 +37,27 @@ Before you start, make sure you have the following installed:
 npm install
 ```
 
-2. Start the Angular app in development mode:
+2. Start Electron (it starts the Angular development server automatically):
+
+```bash
+npm run electron
+```
+
+To run only the browser preview:
 
 ```bash
 npm run start
 ```
 
-3. Open the app in your browser:
-
-```text
-http://localhost:4200/
-```
-
-## Run the Desktop App
-
-To launch the full desktop application with Tauri:
-
-```bash
-npx tauri dev
-```
-
-This will start the Angular development server and open the Tauri desktop shell configured in `src-tauri/tauri.conf.json`.
-
 ## Production Build
 
-To build the app for production:
+Build the Angular frontend:
 
 ```bash
 npm run build
-npx tauri build
 ```
 
-This creates the frontend production bundle and packages the desktop app.
+The Electron main process loads `dist/desktop-pet/browser/index.html` when packaged. A distribution installer/build configuration still needs to be added before release packaging.
 
 ## Project Structure
 
@@ -80,10 +68,7 @@ desktop-pet/
 │   ├── assets/              # Images, sounds, and app data
 │   ├── styles.css           # Global styles
 │   └── index.html           # App entry HTML
-├── src-tauri/               # Tauri desktop wrapper and Rust backend
-│   ├── src/                 # Rust source files
-│   ├── tauri.conf.json      # Tauri configuration
-│   └── icons/               # App icons
+├── electron/                # Electron main process and secure preload bridge
 ├── speech-engine/           # Local Python speech engine
 │   ├── engine.py            # TTS processing logic
 │   ├── requirements.txt     # Python dependencies
@@ -125,9 +110,9 @@ npm test
 
 ## Notes
 
-- The app is configured to run as a local desktop companion with a browser preview during development.
-- The Tauri configuration points the desktop app to the Angular dev server on `http://localhost:4200`.
-- The project includes both frontend logic and a native desktop wrapper, so both Angular and Rust toolchains are needed for full local development.
+- Electron is the active desktop shell. The legacy `src-tauri/` directory remains in the repository for reference but is no longer used by the desktop start scripts.
+- The Electron shell uses a restricted preload bridge for IPC; Node.js integration is disabled in Angular renderer windows.
+- `npm run electron` launches the pet and starts an Angular dev server on port 4200 if one is not already available.
 
 ## License
 

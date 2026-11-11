@@ -6,12 +6,14 @@ import {
   inject,
   signal
 } from '@angular/core';
-import { emit, listen } from '@tauri-apps/api/event';
 import {
+  emit,
+  isDesktopRuntime,
   isPermissionGranted,
+  listen,
   requestPermission,
   sendNotification
-} from '@tauri-apps/plugin-notification';
+} from '../../core/desktop-bridge';
 import { FormsModule } from '@angular/forms';
 import { TaskStoreService } from '../../core/task-store.service';
 import { Task } from '../../shared/task.model';
@@ -32,7 +34,7 @@ export class TaskList implements OnInit, OnDestroy {
   newPriority: Task['priority'] = 'medium';
 
   async ngOnInit(): Promise<void> {
-    if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+    if (isDesktopRuntime()) {
       this.unlistenTasksUpdated = await listen('tasks-updated', () => {
         void this.refresh().catch(error => {
           console.error('Failed to refresh tasks after a cross-window update:', error);

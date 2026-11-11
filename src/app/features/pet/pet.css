@@ -13,6 +13,24 @@
   overflow: visible;
 }
 
+.pet-container.transparency-test-mode canvas {
+  display: none;
+}
+
+.transparency-test-marker {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 100px;
+  height: 100px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #00c8ff;
+  box-shadow: 0 0 0 2px #111, 0 4px 16px rgba(0, 0, 0, 0.3);
+  transform: translate(-50%, -50%);
+}
+
 canvas {
   display: block;
   position: relative;
@@ -23,7 +41,18 @@ canvas {
 
   width: 250px;
   height: 250px;
-  animation: pet-idle 3.6s ease-in-out infinite;
+}
+
+.rive-source-canvas {
+  opacity: 0;
+  pointer-events: auto;
+}
+
+.rive-display-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
 }
 
 .quick-action-wheel {

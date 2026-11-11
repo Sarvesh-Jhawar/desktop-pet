@@ -13,28 +13,19 @@ import { FormsModule } from '@angular/forms';
 import {
   Rive,
   StateMachineInput
-} from '@rive-app/webgl2';
-
-import {
-  getCurrentWindow
-} from '@tauri-apps/api/window';
+} from '@rive-app/canvas';
 
 import {
   emit,
-  listen
-} from '@tauri-apps/api/event';
-
-import { invoke } from '@tauri-apps/api/core';
-
-import {
-  LogicalSize,
-  PhysicalPosition
-} from '@tauri-apps/api/dpi';
-
-import {
+  getCurrentWindow,
+  invoke,
+  isDesktopRuntime,
+  listen,
   load,
+  LogicalSize,
+  PhysicalPosition,
   Store
-} from '@tauri-apps/plugin-store';
+} from '../../core/desktop-bridge';
 
 import { ReminderSchedulerService } from '../../core/reminder-scheduler.service';
 import { ReminderStoreService } from '../../core/reminder-store.service';
@@ -95,8 +86,13 @@ export class Pet implements OnInit, OnDestroy {
 
   readonly health = inject(HealthHabitService);
 
-  private readonly isTauriRuntime =
-    Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
+  private readonly isDesktopShell =
+    isDesktopRuntime();
+
+  readonly transparencyTestMode =
+    new URLSearchParams(globalThis.location.search).get('transparencyTest') === '1';
+
+  private windowDragging = false;
 
   private readonly speechQueue: Array<{
     message: string;
@@ -116,9 +112,13 @@ export class Pet implements OnInit, OnDestroy {
   private petFocused = false;
 
   private riveLoaded = false;
+  private backgroundRemovalFrame?: number;
 
   @ViewChild('petCanvas', { static: true })
   canvasRef!: ElementRef<HTMLCanvasElement>;
+
+  @ViewChild('petDisplayCanvas', { static: true })
+  displayCanvasRef!: ElementRef<HTMLCanvasElement>;
 
   @ViewChild('quickActionWheel')
   quickActionWheelRef?: ElementRef<HTMLDivElement>;
@@ -232,7 +232,7 @@ export class Pet implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
 
-    if (this.isTauriRuntime) {
+    if (this.isDesktopShell) {
       this.health.onHabitStarted = habit => this.onHealthHabitStarted(habit);
       this.health.onHabitCompleted = (habit, completed) =>
         this.onHealthHabitCompleted(habit, completed);
@@ -343,7 +343,8 @@ export class Pet implements OnInit, OnDestroy {
      * ---------------------------------------------------------
      */
 
-    this.rive = new Rive({
+    if (!this.transparencyTestMode) {
+      this.rive = new Rive({
 
       src: 'assets/pet.riv',
 
@@ -363,6 +364,9 @@ export class Pet implements OnInit, OnDestroy {
           'Milly Rive loaded successfully'
         );
 
+        this.backgroundRemovalFrame = requestAnimationFrame(
+          this.renderPetWithTransparentBackground
+        );
         this.rive?.resizeDrawingSurfaceToCanvas();
         this.petState.attach(this.rive!);
         this.petRules.start();
@@ -439,7 +443,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
          * -----------------------------------------------------
          */
 
-        if (this.isTauriRuntime) {
+        if (this.isDesktopShell) {
           if (this.petFocused) {
             void this.greetOnFirstShow().catch(error => {
               console.error('Failed to prepare Milly’s startup greeting:', error);
@@ -458,7 +462,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
           error
         );
       }
-    });
+      });
+    } else {
+      console.info('Transparency test mode is active; Rive rendering is disabled.');
+    }
 
 
     /*
@@ -510,7 +517,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
      * ---------------------------------------------------------
      */
 
-    if (this.isTauriRuntime) {
+    if (this.isDesktopShell) {
       this.initPersistence();
     } else {
       console.info('Tauri APIs are unavailable; running in browser preview mode.');
@@ -654,7 +661,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       return Promise.resolve();
     }
 
-    if (!this.isTauriRuntime) {
+    if (!this.isDesktopShell) {
       this.showBubble(message, fallbackDurationMs);
       return Promise.resolve();
     }
@@ -1045,7 +1052,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     canvas.width = px;
     canvas.height = px;
 
-    if (this.isTauriRuntime) {
+    if (this.isDesktopShell) {
       void getCurrentWindow()
         .setSize(new LogicalSize(px, px))
         .catch(error => {
@@ -1072,6 +1079,12 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   ): void => {
 
     if (event.button !== 0) {
+      if (this.windowDragging) {
+        this.windowDragging = false;
+        void getCurrentWindow().stopDragging().catch(error => {
+          console.error('Failed to stop window dragging:', error);
+        });
+      }
       this.mouseDownPos = null;
       return;
     }
@@ -1333,7 +1346,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     }
 
     this.hideBubble();
-    if (!this.isTauriRuntime) return;
+    if (!this.isDesktopShell) return;
     try {
       await this.speech.stop();
     } catch (error) {
@@ -1349,7 +1362,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       queuedItem.resolve();
     }
 
-    if (this.isTauriRuntime) {
+    if (this.isDesktopShell) {
       try {
         await this.speech.stop();
       } catch (error) {
@@ -1508,6 +1521,13 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     event: MouseEvent
   ): void => {
 
+    if (this.windowDragging) {
+      void getCurrentWindow().moveDragging(event.screenX, event.screenY).catch(error => {
+        console.error('Failed to move the pet window:', error);
+      });
+      return;
+    }
+
     if (!this.mouseDownPos) {
       return;
     }
@@ -1539,16 +1559,14 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     this.mouseDownPos = null;
 
+    if (!this.isDesktopShell) return;
 
-    getCurrentWindow()
-      .startDragging()
-      .catch(error => {
+    this.windowDragging = true;
+    getCurrentWindow().startDragging().catch(error => {
+      this.windowDragging = false;
 
-        console.error(
-          'Failed to start window dragging:',
-          error
-        );
-      });
+      console.error('Failed to start window dragging:', error);
+    });
   };
 
 
@@ -1565,6 +1583,13 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     if (event.button !== 0) {
       this.mouseDownPos = null;
       return;
+    }
+
+    if (this.windowDragging) {
+      this.windowDragging = false;
+      void getCurrentWindow().stopDragging().catch(error => {
+        console.error('Failed to stop window dragging:', error);
+      });
     }
 
     if (!this.mouseDownPos) {
@@ -1819,6 +1844,82 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     }, 4000);
   }
 
+  private renderPetWithTransparentBackground = (): void => {
+    const source = this.canvasRef.nativeElement;
+    const display = this.displayCanvasRef.nativeElement;
+    const context = display.getContext('2d');
+
+    if (!context || source.width === 0 || source.height === 0) {
+      this.backgroundRemovalFrame = requestAnimationFrame(
+        this.renderPetWithTransparentBackground
+      );
+      return;
+    }
+
+    if (display.width !== source.width || display.height !== source.height) {
+      display.width = source.width;
+      display.height = source.height;
+    }
+
+    context.clearRect(0, 0, display.width, display.height);
+    context.drawImage(source, 0, 0);
+
+    const frame = context.getImageData(0, 0, display.width, display.height);
+    const pixels = frame.data;
+    const background = [
+      [0, 0],
+      [display.width - 1, 0],
+      [0, display.height - 1],
+      [display.width - 1, display.height - 1]
+    ].map(([x, y]) => {
+      const offset = (y * display.width + x) * 4;
+      return [pixels[offset], pixels[offset + 1], pixels[offset + 2]];
+    }).find(([red, green, blue]) => red !== undefined && green !== undefined && blue !== undefined);
+
+    if (background) {
+      const [red, green, blue] = background;
+      const pixelCount = display.width * display.height;
+      const queue = new Int32Array(pixelCount);
+      let head = 0;
+      let tail = 0;
+
+      const enqueue = (index: number): void => {
+        const offset = index * 4;
+        if (pixels[offset + 3] === 0) return;
+        if (
+          Math.abs(pixels[offset] - red) > 24 ||
+          Math.abs(pixels[offset + 1] - green) > 24 ||
+          Math.abs(pixels[offset + 2] - blue) > 24
+        ) return;
+        pixels[offset + 3] = 0;
+        queue[tail++] = index;
+      };
+
+      for (let x = 0; x < display.width; x++) {
+        enqueue(x);
+        enqueue((display.height - 1) * display.width + x);
+      }
+      for (let y = 1; y < display.height - 1; y++) {
+        enqueue(y * display.width);
+        enqueue(y * display.width + display.width - 1);
+      }
+
+      while (head < tail) {
+        const index = queue[head++];
+        const x = index % display.width;
+        if (x > 0) enqueue(index - 1);
+        if (x + 1 < display.width) enqueue(index + 1);
+        if (index >= display.width) enqueue(index - display.width);
+        if (index + display.width < pixelCount) enqueue(index + display.width);
+      }
+
+      context.putImageData(frame, 0, 0);
+    }
+
+    this.backgroundRemovalFrame = requestAnimationFrame(
+      this.renderPetWithTransparentBackground
+    );
+  };
 
   /*
    * =========================================================
@@ -1827,6 +1928,14 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
    */
 
   ngOnDestroy(): void {
+    if (this.backgroundRemovalFrame !== undefined) {
+      cancelAnimationFrame(this.backgroundRemovalFrame);
+      this.backgroundRemovalFrame = undefined;
+    }
+
+    if (this.windowDragging && this.isDesktopShell) {
+      void getCurrentWindow().stopDragging();
+    }
 
     const canvas =
       this.canvasRef.nativeElement;

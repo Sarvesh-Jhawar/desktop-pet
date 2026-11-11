@@ -7,7 +7,7 @@ import {
   inject,
   signal
 } from '@angular/core';
-import { listen } from '@tauri-apps/api/event';
+import { isDesktopRuntime, listen } from '../../core/desktop-bridge';
 import { FormsModule } from '@angular/forms';
 import { ReminderStoreService } from '../../core/reminder-store.service';
 import { Reminder } from '../../shared/reminder.model';
@@ -30,7 +30,7 @@ export class Reminders implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     await this.refresh();
-    if ((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+    if (isDesktopRuntime()) {
       try {
         this.unlistenReminders = await listen('reminders-updated', () => {
           void this.refresh().catch(error => {

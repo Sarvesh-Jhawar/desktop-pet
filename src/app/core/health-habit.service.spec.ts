@@ -3,16 +3,6 @@ import { vi } from 'vitest';
 import { ActivityTrackerService } from './activity-tracker.service';
 import { HealthHabitService } from './health-habit.service';
 
-const mockStore = vi.hoisted(() => ({
-  get: vi.fn(),
-  set: vi.fn(),
-  save: vi.fn()
-}));
-
-vi.mock('@tauri-apps/plugin-store', () => ({
-  load: vi.fn(async () => mockStore)
-}));
-
 describe('HealthHabitService', () => {
   let service: HealthHabitService;
   let idleMinutes: number;
@@ -21,10 +11,8 @@ describe('HealthHabitService', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-17T08:00:00'));
     idleMinutes = 0;
-    mockStore.get.mockReset();
-    mockStore.set.mockReset().mockResolvedValue(undefined);
-    mockStore.save.mockReset().mockResolvedValue(undefined);
-    mockStore.get.mockResolvedValue({
+    localStorage.setItem('desktop-pet:settings.json', JSON.stringify({
+      healthHabitState: {
       settings: {
         eyeRestEnabled: true,
         hydrationEnabled: false,
@@ -38,7 +26,8 @@ describe('HealthHabitService', () => {
         postures: 0,
         stretches: 0
       }
-    });
+      }
+    }));
 
     TestBed.configureTestingModule({
       providers: [
@@ -56,6 +45,7 @@ describe('HealthHabitService', () => {
     service.stop();
     vi.restoreAllMocks();
     vi.useRealTimers();
+    localStorage.clear();
     TestBed.resetTestingModule();
   });
 
@@ -70,7 +60,8 @@ describe('HealthHabitService', () => {
     expect(service.activeHabit()).toBeNull();
     expect(service.dailyCounts().eyeRests).toBe(1);
     expect(service.streakDays()).toBe(1);
-    expect(mockStore.save).toHaveBeenCalled();
+    const stored = JSON.parse(localStorage.getItem('desktop-pet:settings.json') ?? '{}');
+    expect(stored.healthHabitState.daily.eyeRests).toBe(1);
   });
 
   it('does not accrue reminder time while the desk is idle', async () => {

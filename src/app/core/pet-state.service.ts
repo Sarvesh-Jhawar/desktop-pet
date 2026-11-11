@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Rive, StateMachineInput } from '@rive-app/webgl2';
+import { Rive, StateMachineInput } from '@rive-app/canvas';
 
 // These are product states. Milly's Rive file only has four real animations;
 // the remaining states are approximated with shell color and bubble text.

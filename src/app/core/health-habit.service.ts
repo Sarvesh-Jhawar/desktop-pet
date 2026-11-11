@@ -1,6 +1,5 @@
 import { Injectable, OnDestroy, inject, signal } from '@angular/core';
-import { emit, listen } from '@tauri-apps/api/event';
-import { load, Store } from '@tauri-apps/plugin-store';
+import { emit, isDesktopRuntime, listen, load, Store } from './desktop-bridge';
 import { interval, Subscription } from 'rxjs';
 import { ActivityTrackerService } from './activity-tracker.service';
 
@@ -129,7 +128,7 @@ export class HealthHabitService implements OnDestroy {
     if (this.tickSubscription) return;
 
     this.lastTickAt = Date.now();
-    if (this.isTauriRuntime()) {
+    if (this.isDesktopShell()) {
       try {
         this.unlistenSettings = await listen<HealthHabitSettings>(
           'health-settings-updated',
@@ -171,7 +170,7 @@ export class HealthHabitService implements OnDestroy {
     }
 
     this.dismissDisabledHabit(nextSettings);
-    if (this.isTauriRuntime()) {
+    if (this.isDesktopShell()) {
       try {
         await emit('health-settings-updated', nextSettings);
       } catch (error) {
@@ -276,7 +275,7 @@ export class HealthHabitService implements OnDestroy {
     this.dailyCounts.set(daily);
 
     if (savedDaily?.date !== currentDate) await this.persist();
-    if (this.isTauriRuntime()) {
+    if (this.isDesktopShell()) {
       try {
         this.unlistenCounters = await listen<DailyHealthCounts>(
           'health-state-updated',
@@ -494,7 +493,7 @@ export class HealthHabitService implements OnDestroy {
   }
 
   private async broadcastState(): Promise<void> {
-    if (!this.isTauriRuntime()) return;
+    if (!this.isDesktopShell()) return;
     try {
       await emit('health-state-updated', this.dailyCounts());
     } catch (error) {
@@ -525,7 +524,7 @@ export class HealthHabitService implements OnDestroy {
     return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : 0;
   }
 
-  private isTauriRuntime(): boolean {
-    return Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
+  private isDesktopShell(): boolean {
+    return isDesktopRuntime();
   }
 }

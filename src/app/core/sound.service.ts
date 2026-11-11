@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { load } from '@tauri-apps/plugin-store';
+import { load } from './desktop-bridge';
 
 export type SoundEvent = 'click' | 'taskComplete' | 'timerComplete' | 'reminder' | 'greeting' | 'health';
 

@@ -1,21 +1,10 @@
 import { vi } from 'vitest';
 import { SpeechService } from './speech.service';
 
-const tauriMocks = vi.hoisted(() => ({
-  invoke: vi.fn(),
-  listen: vi.fn()
-}));
-
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: tauriMocks.invoke
-}));
-
-vi.mock('@tauri-apps/api/event', () => ({
-  listen: tauriMocks.listen
-}));
-
 describe('SpeechService', () => {
   let service: SpeechService;
+  const invoke = vi.fn();
+  const listen = vi.fn();
   let dispatchSpeechEvent:
     | ((event: { payload: { status: string; request_id?: number } }) => void)
     | undefined;
@@ -23,7 +12,7 @@ describe('SpeechService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dispatchSpeechEvent = undefined;
-    tauriMocks.listen.mockImplementation(
+    listen.mockImplementation(
       async (
         _eventName: string,
         handler: (event: { payload: { status: string; request_id?: number } }) => void
@@ -32,12 +21,25 @@ describe('SpeechService', () => {
         return () => {};
       }
     );
+    window.desktopPet = {
+      invoke,
+      emit: vi.fn().mockResolvedValue(undefined),
+      listen,
+      onWindowFocus: vi.fn(() => () => {}),
+      onWindowMoved: vi.fn(() => () => {}),
+      onCloseRequested: vi.fn(() => () => {}),
+      moveDragging: vi.fn().mockResolvedValue(undefined)
+    };
     service = new SpeechService();
+  });
+
+  afterEach(() => {
+    delete window.desktopPet;
   });
 
   it('waits for first audio before reporting playback start', async () => {
     let resolveSpeak!: (requestId: number) => void;
-    tauriMocks.invoke.mockReturnValue(
+    invoke.mockReturnValue(
       new Promise<number>(resolve => {
         resolveSpeak = resolve;
       })
@@ -63,7 +65,7 @@ describe('SpeechService', () => {
   });
 
   it('reports cancellation without marking playback as unavailable', async () => {
-    tauriMocks.invoke.mockResolvedValue(11);
+    invoke.mockResolvedValue(11);
     const onPlaybackUnavailable = vi.fn();
     const onPlaybackCancelled = vi.fn();
     const speakPromise = service.speakAndWait('Cancel me', {

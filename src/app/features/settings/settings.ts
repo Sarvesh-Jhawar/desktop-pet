@@ -5,14 +5,8 @@ import {
   inject,
   signal
 } from '@angular/core';
-import { emit } from '@tauri-apps/api/event';
-import { load } from '@tauri-apps/plugin-store';
+import { disable, emit, enable, isEnabled, load } from '../../core/desktop-bridge';
 import { SpeechService } from '../../core/speech.service';
-import {
-  disable,
-  enable,
-  isEnabled
-} from '@tauri-apps/plugin-autostart';
 
 type PetSize = 'small' | 'medium' | 'large';
 

@@ -1,5 +1,5 @@
 import { Injectable, OnDestroy } from '@angular/core';
-import { emit, listen } from '@tauri-apps/api/event';
+import { emit, isDesktopRuntime, listen } from './desktop-bridge';
 
 @Injectable({ providedIn: 'root' })
 export class ActivityTrackerService implements OnDestroy {
@@ -13,7 +13,7 @@ export class ActivityTrackerService implements OnDestroy {
     window.addEventListener('keydown', this.markActive);
     window.addEventListener('input', this.markActive);
 
-    if (this.isTauriRuntime()) {
+    if (this.isDesktopShell()) {
       void listen<number>('user-activity', event => {
         this.lastActivityAt = Math.max(this.lastActivityAt, event.payload);
       }).then(unlisten => {
@@ -39,7 +39,7 @@ export class ActivityTrackerService implements OnDestroy {
   private markActive = (): void => {
     this.lastActivityAt = Date.now();
     const now = this.lastActivityAt;
-    if (!this.isTauriRuntime() || now - this.lastBroadcastAt < 10_000) return;
+    if (!this.isDesktopShell() || now - this.lastBroadcastAt < 10_000) return;
     this.lastBroadcastAt = now;
     void emit('user-activity', now).catch(error => {
       console.error('Failed to share desktop activity with other Milly windows:', error);
@@ -51,7 +51,7 @@ export class ActivityTrackerService implements OnDestroy {
     if (now - this.lastActivityAt >= 5_000) this.markActive();
   };
 
-  private isTauriRuntime(): boolean {
-    return Boolean((globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
+  private isDesktopShell(): boolean {
+    return isDesktopRuntime();
   }
 }

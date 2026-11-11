@@ -1,4 +1,7 @@
-<div class="pet-container">
+<div class="pet-container" [class.transparency-test-mode]="transparencyTestMode">
+  @if (transparencyTestMode) {
+    <div class="transparency-test-marker" aria-label="Transparency test marker"></div>
+  }
 
   @if (health.activeHabit(); as habit) {
     <aside
@@ -228,10 +231,19 @@
 
   <canvas
     #petCanvas
+    class="rive-source-canvas"
+    width="250"
+    height="250"
+    aria-hidden="true"
+    tabindex="-1"
+  ></canvas>
+
+  <canvas
+    #petDisplayCanvas
+    class="rive-display-canvas"
     width="250"
     height="250"
     aria-label="Milly desktop pet"
-    tabindex="0"
   ></canvas>
 
 </div>

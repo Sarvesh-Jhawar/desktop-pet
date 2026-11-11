@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { load, Store } from '@tauri-apps/plugin-store';
+import { load, Store } from './desktop-bridge';
 import { v4 as uuidv4 } from 'uuid';
 import { Task } from '../shared/task.model';
 
