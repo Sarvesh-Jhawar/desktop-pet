@@ -1,59 +1,134 @@
-# DesktopPet
+# Desktop Pet
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.24.
+Desktop Pet is a desktop companion application built with Angular and Tauri. It gives you a small interactive virtual pet that can help with daily routines, reminders, timer tracking, and simple productivity habits while staying on your screen.
 
-## Development server
+## Features
 
-To start a local development server, run:
+- Animated desktop pet experience
+- Dashboard for overview and status
+- Task and reminder management
+- Focus timer and productivity tracking
+- Motivational quotes and pet behavior responses
+- Speech synthesis support for voice interactions
+- Desktop app packaging using Tauri
 
-```bash
-ng serve
-```
+## Tech Stack
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+- Angular 21
+- TypeScript
+- RxJS
+- Tauri 2 / Rust
+- Python speech engine for local text-to-speech
+- Vitest for frontend testing
 
-## Code scaffolding
+## Prerequisites
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Before you start, make sure you have the following installed:
 
-```bash
-ng generate component component-name
-```
+- Node.js 20+ and npm
+- Rust toolchain (for Tauri)
+- Python 3.12 (recommended for the speech engine)
+- A Windows environment is recommended because the project includes Windows-specific Tauri and speech engine setup
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Quick Start
 
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+1. Install project dependencies:
 
 ```bash
-ng test
+npm install
 ```
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
+2. Start the Angular app in development mode:
 
 ```bash
-ng e2e
+npm run start
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+3. Open the app in your browser:
 
-## Additional Resources
+```text
+http://localhost:4200/
+```
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+## Run the Desktop App
+
+To launch the full desktop application with Tauri:
+
+```bash
+npx tauri dev
+```
+
+This will start the Angular development server and open the Tauri desktop shell configured in `src-tauri/tauri.conf.json`.
+
+## Production Build
+
+To build the app for production:
+
+```bash
+npm run build
+npx tauri build
+```
+
+This creates the frontend production bundle and packages the desktop app.
+
+## Project Structure
+
+```text
+desktop-pet/
+├── src/                     # Angular frontend app
+│   ├── app/                 # App components, routes, and services
+│   ├── assets/              # Images, sounds, and app data
+│   ├── styles.css           # Global styles
+│   └── index.html           # App entry HTML
+├── src-tauri/               # Tauri desktop wrapper and Rust backend
+│   ├── src/                 # Rust source files
+│   ├── tauri.conf.json      # Tauri configuration
+│   └── icons/               # App icons
+├── speech-engine/           # Local Python speech engine
+│   ├── engine.py            # TTS processing logic
+│   ├── requirements.txt     # Python dependencies
+│   └── tests/               # Speech engine tests
+├── public/                  # Static public assets
+├── angular.json             # Angular workspace config
+├── package.json             # NPM scripts and dependencies
+├── tsconfig.json            # TypeScript config
+├── README.md                # Project documentation
+└── Desktop_Pet_Phase_1_Documentation_2026-09-20.docx
+```
+
+## Speech Engine
+
+The project includes a local speech engine under `speech-engine/` for voice output. If the audio backend is missing, install the Python requirements:
+
+```bash
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r speech-engine\requirements.txt
+```
+
+For Windows packaging, the project also includes a build script:
+
+```powershell
+./speech-engine/build.ps1
+```
+
+This builds the bundled speech runtime used by the desktop app.
+
+## Development Scripts
+
+```bash
+npm run start
+npm run build
+npm run watch
+npm test
+```
+
+## Notes
+
+- The app is configured to run as a local desktop companion with a browser preview during development.
+- The Tauri configuration points the desktop app to the Angular dev server on `http://localhost:4200`.
+- The project includes both frontend logic and a native desktop wrapper, so both Angular and Rust toolchains are needed for full local development.
+
+## License
+
+This project does not currently include a license file in the repository root. If you plan to distribute or publish the app, add a license before release.
