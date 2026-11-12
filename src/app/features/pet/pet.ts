@@ -37,6 +37,7 @@ import { DialogueService } from '../../core/dialogue.service';
 import { SoundService } from '../../core/sound.service';
 import { SpeechService } from '../../core/speech.service';
 import { MotivationalQuoteService } from '../../core/motivational-quote.service';
+import { MotivationalStoryService } from '../../core/motivational-story.service';
 import { TaskStoreService } from '../../core/task-store.service';
 import {
   ActiveHealthHabit,
@@ -48,9 +49,23 @@ import { Task } from '../../shared/task.model';
 type PetSize = 'small' | 'medium' | 'large';
 type QuickActionCommand =
   | { action: 'start-timer'; duration: number; label: string }
-  | { action: 'motivate' }
+  | { action: 'motivate'; content: 'quote' | 'story' }
   | { action: 'read-out'; category: 'tasks' | 'timers' | 'reminders' }
   | { action: 'reminder-added'; title: string };
+
+interface SpeechQueueItem {
+  message: string;
+  sentences: string[];
+  sentenceIndex: number;
+  fallbackDurationMs: number;
+  generation: number;
+  resolve: () => void;
+}
+
+function splitIntoSentences(message: string): string[] {
+  const sentences = message.match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g);
+  return sentences?.map(sentence => sentence.trim()).filter(Boolean) ?? [message];
+}
 
 const SIZE_MAP: Record<PetSize, number> = {
   small: 150,
@@ -89,6 +104,8 @@ export class Pet implements OnInit, OnDestroy {
 
   private readonly motivationalQuotes = inject(MotivationalQuoteService);
 
+  private readonly motivationalStories = inject(MotivationalStoryService);
+
   private readonly taskStore = inject(TaskStoreService);
 
   readonly health = inject(HealthHabitService);
@@ -107,12 +124,9 @@ export class Pet implements OnInit, OnDestroy {
 
   private mouseEventsIgnored = false;
 
-  private readonly speechQueue: Array<{
-    message: string;
-    fallbackDurationMs: number;
-    generation: number;
-    resolve: () => void;
-  }> = [];
+  private readonly speechQueue: SpeechQueueItem[] = [];
+
+  private activeSpeechItem?: SpeechQueueItem;
 
   private processingSpeechQueue = false;
 
@@ -144,6 +158,8 @@ export class Pet implements OnInit, OnDestroy {
   quickReminderMode = signal(false);
 
   quickReadOutMode = signal(false);
+
+  quickMotivationMode = signal(false);
 
   quickTimerLabelMode = signal(false);
 
@@ -249,8 +265,17 @@ export class Pet implements OnInit, OnDestroy {
 
   bubbleVisible = signal(false);
 
-  private bubbleTimeout?: ReturnType<typeof setTimeout>;
+  speechBubbleMinimized = signal(true);
 
+  speechSentences = signal<string[]>([]);
+
+  currentSpeechSentence = signal('');
+
+  activeSpeechSentenceIndex = signal(-1);
+
+  speechPlaybackActive = signal(false);
+
+  private bubbleTimeout?: ReturnType<typeof setTimeout>;
 
   /*
    * =========================================================
@@ -742,7 +767,14 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         resolve();
         return;
       }
-      this.speechQueue.push({ message, fallbackDurationMs, generation, resolve });
+      this.speechQueue.push({
+        message,
+        sentences: splitIntoSentences(message),
+        sentenceIndex: 0,
+        fallbackDurationMs,
+        generation,
+        resolve
+      });
       void this.processSpeechQueue();
     });
   }
@@ -760,65 +792,120 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
           item.resolve();
           continue;
         }
+        this.activeSpeechItem = item;
+        this.speechSentences.set(item.sentences);
+        this.activeSpeechSentenceIndex.set(-1);
+        this.currentSpeechSentence.set('');
+        this.speechPlaybackActive.set(false);
+        this.speechBubbleMinimized.set(true);
+
         let bubbleShown = false;
-        let cancelled = false;
-        let playbackEnded = false;
+        let fallbackShown = false;
         let bubbleShowTimeout: ReturnType<typeof setTimeout> | undefined;
         try {
-          while (await this.speech.isSpeaking()) {
-            await new Promise(resolve => setTimeout(resolve, 250));
-          }
-          if (item.generation !== this.speechQueueGeneration) {
-            continue;
-          }
+          while (item.sentenceIndex < item.sentences.length) {
+            if (item.generation !== this.speechQueueGeneration) break;
 
-          await this.speech.speakAndWait(item.message, {
-            onPlaybackStart: () => {
-              bubbleShown = true;
-              bubbleShowTimeout = setTimeout(() => {
-                bubbleShowTimeout = undefined;
-                if (!cancelled && !playbackEnded) {
-                  this.showBubble(item.message, null);
+            const sentenceIndex = item.sentenceIndex;
+            const sentence = item.sentences[sentenceIndex];
+            this.activeSpeechSentenceIndex.set(sentenceIndex);
+            this.currentSpeechSentence.set(sentence);
+
+            let cancelled = false;
+            let playbackUnavailable = false;
+            let playbackEnded = false;
+            try {
+              while (await this.speech.isSpeaking()) {
+                await new Promise(resolve => setTimeout(resolve, 250));
+              }
+              if (item.generation !== this.speechQueueGeneration) break;
+
+              await this.speech.speakAndWait(sentence, {
+                onPlaybackStart: () => {
+                  bubbleShown = true;
+                  this.speechPlaybackActive.set(true);
+                  bubbleShowTimeout = setTimeout(() => {
+                    bubbleShowTimeout = undefined;
+                    if (!cancelled && !playbackEnded) {
+                      this.showBubble(item.message, null);
+                    }
+                  }, SPEECH_BUBBLE_SYNC_DELAY_MS);
+                },
+                onPlaybackEnd: () => {
+                  playbackEnded = true;
+                  this.speechPlaybackActive.set(false);
+                  if (bubbleShowTimeout) {
+                    clearTimeout(bubbleShowTimeout);
+                    bubbleShowTimeout = undefined;
+                  }
+                },
+                onPlaybackUnavailable: () => {
+                  playbackUnavailable = true;
+                  bubbleShown = true;
+                  this.speechPlaybackActive.set(false);
+                  this.showBubble(item.message, item.fallbackDurationMs);
+                },
+                onPlaybackCancelled: () => {
+                  cancelled = true;
+                  this.speechPlaybackActive.set(false);
+                  if (bubbleShowTimeout) {
+                    clearTimeout(bubbleShowTimeout);
+                    bubbleShowTimeout = undefined;
+                  }
+                  if (item.sentenceIndex === sentenceIndex) {
+                    this.hideBubble(item.message);
+                  }
                 }
-              }, SPEECH_BUBBLE_SYNC_DELAY_MS);
-            },
-            onPlaybackEnd: () => {
-              playbackEnded = true;
-              if (bubbleShowTimeout) {
-                clearTimeout(bubbleShowTimeout);
-                bubbleShowTimeout = undefined;
-              }
-              this.hideBubble(item.message);
-            },
-            onPlaybackUnavailable: () => {
-              bubbleShown = true;
+              });
+            } catch (error) {
+              console.error('Failed to speak a pet interaction:', error);
+              this.speechPlaybackActive.set(false);
               this.showBubble(item.message, item.fallbackDurationMs);
-            },
-            onPlaybackCancelled: () => {
-              cancelled = true;
+              fallbackShown = true;
+              break;
+            } finally {
               if (bubbleShowTimeout) {
                 clearTimeout(bubbleShowTimeout);
                 bubbleShowTimeout = undefined;
               }
-              this.hideBubble(item.message);
             }
-          });
-        } catch (error) {
-          console.error('Failed to speak a pet interaction:', error);
-          if (!bubbleShown) {
-            this.showBubble(item.message, item.fallbackDurationMs);
+
+            if (item.generation !== this.speechQueueGeneration) break;
+            if (playbackUnavailable) {
+              fallbackShown = true;
+              break;
+            }
+            if (cancelled) {
+              if (item.sentenceIndex !== sentenceIndex) continue;
+              const remaining = this.speechQueue.splice(0);
+              for (const queuedItem of remaining) {
+                queuedItem.resolve();
+              }
+              break;
+            }
+            if (item.sentenceIndex === sentenceIndex) {
+              item.sentenceIndex += 1;
+            }
           }
         } finally {
           if (bubbleShowTimeout) {
             clearTimeout(bubbleShowTimeout);
           }
-          item.resolve();
-        }
-        if (cancelled && item.generation === this.speechQueueGeneration) {
-          const remaining = this.speechQueue.splice(0);
-          for (const queuedItem of remaining) {
-            queuedItem.resolve();
+          if (
+            item.generation === this.speechQueueGeneration &&
+            bubbleShown &&
+            !fallbackShown
+          ) {
+            this.hideBubble(item.message);
           }
+          if (this.activeSpeechItem === item) {
+            this.activeSpeechItem = undefined;
+            this.speechPlaybackActive.set(false);
+            this.speechSentences.set([]);
+            this.currentSpeechSentence.set('');
+            this.activeSpeechSentenceIndex.set(-1);
+          }
+          item.resolve();
         }
       }
     } finally {
@@ -1187,6 +1274,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.quickTimerMode.set(false);
     this.quickReminderMode.set(false);
     this.quickReadOutMode.set(false);
+    this.quickMotivationMode.set(false);
     this.quickTimerLabelMode.set(false);
     this.quickCustomTimerMode.set(false);
     this.quickTaskTitle = '';
@@ -1207,6 +1295,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.quickTimerMode.set(false);
     this.quickReminderMode.set(false);
     this.quickReadOutMode.set(false);
+    this.quickMotivationMode.set(false);
     this.quickTimerLabelMode.set(false);
     this.quickCustomTimerMode.set(false);
     this.quickTaskMode.set(false);
@@ -1276,6 +1365,30 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         .querySelector<HTMLInputElement>('#quick-reminder-title')
         ?.focus();
     });
+  }
+
+  openQuickMotivationMenu(): void {
+    this.quickTimerMode.set(false);
+    this.quickReminderMode.set(false);
+    this.quickTaskMode.set(false);
+    this.quickReadOutMode.set(false);
+    this.quickMotivationMode.set(true);
+  }
+
+  async selectMotivationalQuote(): Promise<void> {
+    if (this.quickActionsOverlay) {
+      await this.dispatchQuickAction({ action: 'motivate', content: 'quote' });
+      return;
+    }
+    await this.speakMotivationalContent('quote');
+  }
+
+  async selectInterestingStory(): Promise<void> {
+    if (this.quickActionsOverlay) {
+      await this.dispatchQuickAction({ action: 'motivate', content: 'story' });
+      return;
+    }
+    await this.speakMotivationalContent('story');
   }
 
   async addQuickReminder(event: Event): Promise<void> {
@@ -1432,6 +1545,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
   async stopSpeech(): Promise<void> {
     this.speechQueueGeneration += 1;
+    this.speechPlaybackActive.set(false);
     for (const queuedItem of this.speechQueue.splice(0)) {
       queuedItem.resolve();
     }
@@ -1446,8 +1560,41 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     }
   }
 
+  async previousSpeechSentence(): Promise<void> {
+    await this.navigateSpeechSentence(-1);
+  }
+
+  async nextSpeechSentence(): Promise<void> {
+    await this.navigateSpeechSentence(1);
+  }
+
+  private async navigateSpeechSentence(direction: -1 | 1): Promise<void> {
+    const item = this.activeSpeechItem;
+    if (!item || !this.speechPlaybackActive()) return;
+
+    const previousIndex = item.sentenceIndex;
+    const nextIndex = previousIndex + direction;
+    if (nextIndex < 0 || nextIndex >= item.sentences.length) return;
+
+    item.sentenceIndex = nextIndex;
+    this.activeSpeechSentenceIndex.set(nextIndex);
+    this.currentSpeechSentence.set(item.sentences[nextIndex]);
+    try {
+      await this.speech.stop();
+    } catch (error) {
+      console.error('Failed to move through Milly’s speech:', error);
+      if (this.activeSpeechItem === item) {
+        item.sentenceIndex = previousIndex;
+        this.activeSpeechSentenceIndex.set(previousIndex);
+        this.currentSpeechSentence.set(item.sentences[previousIndex]);
+      }
+      this.showBubble('I could not move through the speech. Please try again.', 3000);
+    }
+  }
+
   private async replaceSpeechQueue(): Promise<number> {
     this.speechQueueGeneration += 1;
+    this.speechPlaybackActive.set(false);
     const generation = this.speechQueueGeneration;
     for (const queuedItem of this.speechQueue.splice(0)) {
       queuedItem.resolve();
@@ -1678,7 +1825,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         void this.enqueueSpeech(`Your ${command.label} timer has started.`, 3000);
         return;
       case 'motivate':
-        await this.motivate();
+        await this.speakMotivationalContent(command.content);
         return;
       case 'read-out':
         if (command.category === 'tasks') await this.readOutTasks();
@@ -1712,13 +1859,20 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     }
   }
 
-  async motivate(): Promise<void> {
-    if (this.quickActionsOverlay) {
-      await this.dispatchQuickAction({ action: 'motivate' });
-      return;
-    }
+  private async speakMotivationalContent(content: 'quote' | 'story'): Promise<void> {
     this.closeQuickActions();
     try {
+      if (content === 'story') {
+        const story = await this.motivationalStories.next();
+        if (!story) {
+          this.showBubble('I could not find an interesting story right now.', 4000);
+          return;
+        }
+        const speech = `${story.title}. ${story.story} The takeaway: ${story.takeaway}`;
+        await this.enqueueSpeech(speech, 120000);
+        return;
+      }
+
       const quote = await this.motivationalQuotes.next();
       if (!quote) {
         this.showBubble('I could not find a motivational quote right now.', 4000);
@@ -1726,8 +1880,9 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       }
       await this.enqueueSpeech(quote.text, 4000);
     } catch (error) {
-      console.error('Failed to load a motivational quote:', error);
-      this.showBubble('I could not load a motivational quote right now.', 4000);
+      console.error('Failed to load motivational content:', error);
+      const contentLabel = content === 'story' ? 'story' : 'quote';
+      this.showBubble(`I could not load a motivational ${contentLabel} right now.`, 4000);
     }
   }
 

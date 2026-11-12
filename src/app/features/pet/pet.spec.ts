@@ -4,8 +4,11 @@ import { vi } from 'vitest';
 import { Pet } from './pet';
 import { Task } from '../../shared/task.model';
 import { MotivationalQuoteService } from '../../core/motivational-quote.service';
+import { MotivationalStoryService } from '../../core/motivational-story.service';
+import { SpeechService } from '../../core/speech.service';
 import { TaskStoreService } from '../../core/task-store.service';
 import type { MotivationalQuote } from '../../core/motivational-quote.service';
+import type { MotivationalStory } from '../../core/motivational-story.service';
 
 describe('Pet', () => {
   let component: Pet;
@@ -13,24 +16,42 @@ describe('Pet', () => {
   const motivationalQuotes = {
     next: vi.fn<() => Promise<MotivationalQuote | null>>()
   };
+  const motivationalStories = {
+    next: vi.fn<() => Promise<MotivationalStory | null>>()
+  };
 
   beforeEach(async () => {
     motivationalQuotes.next.mockReset();
+    motivationalStories.next.mockReset();
     motivationalQuotes.next.mockResolvedValue({
       id: 'test_001',
       text: 'A little progress is still progress. Keep going!',
       category: 'small_wins'
     });
+    motivationalStories.next.mockResolvedValue({
+      id: 'story_001',
+      title: 'A Small Beginning',
+      category: 'perseverance',
+      story: 'A person kept learning after a setback.',
+      takeaway: 'Small steps matter.',
+      readingTimeMinutes: 1,
+      sources: []
+    });
     await TestBed.configureTestingModule({
       imports: [Pet],
       providers: [
-        { provide: MotivationalQuoteService, useValue: motivationalQuotes }
+        { provide: MotivationalQuoteService, useValue: motivationalQuotes },
+        { provide: MotivationalStoryService, useValue: motivationalStories }
       ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(Pet);
     component = fixture.componentInstance;
     await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('should create', () => {
@@ -180,12 +201,79 @@ describe('Pet', () => {
   });
 
   it('shows a quote from the motivational quote library', async () => {
-    await component.motivate();
+    await component.selectMotivationalQuote();
 
     expect(motivationalQuotes.next).toHaveBeenCalledOnce();
+    expect(motivationalStories.next).not.toHaveBeenCalled();
     expect(component.bubbleVisible()).toBe(true);
     expect(component.bubbleMessage()).toBe(
       'A little progress is still progress. Keep going!'
     );
   });
+
+  it('speaks the selected inspirational story with its takeaway', async () => {
+    await component.selectInterestingStory();
+
+    expect(motivationalStories.next).toHaveBeenCalledOnce();
+    expect(motivationalQuotes.next).not.toHaveBeenCalled();
+    expect(component.bubbleMessage()).toContain('A Small Beginning.');
+    expect(component.bubbleMessage()).toContain('The takeaway: Small steps matter.');
+  });
+
+  it('opens the Motivation menu with quote and story choices', () => {
+    component.quickActionsVisible.set(true);
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('.motivate-action').click();
+    fixture.detectChanges();
+
+    expect(component.quickMotivationMode()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.motivation-quote-choice')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.motivation-story-choice')).toBeTruthy();
+  });
+
+  it('lets the dialogue expand and minimize without moving', () => {
+    component.bubbleMessage.set('Hello from Milly.');
+    component.bubbleVisible.set(true);
+    component.speechBubbleMinimized.set(true);
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('[aria-label="Expand dialogue"]').click();
+    fixture.detectChanges();
+
+    expect(component.speechBubbleMinimized()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.speech-bubble-text').textContent)
+      .toContain('Hello from Milly.');
+
+    fixture.nativeElement.querySelector('[aria-label="Minimize dialogue"]').click();
+    fixture.detectChanges();
+    expect(component.speechBubbleMinimized()).toBe(true);
+  });
+
+  it('moves speech to the selected previous or next sentence', async () => {
+    const speech = TestBed.inject(SpeechService);
+    const stop = vi.spyOn(speech, 'stop').mockResolvedValue();
+    const item = {
+      message: 'First. Second.',
+      sentences: ['First.', 'Second.'],
+      sentenceIndex: 0,
+      fallbackDurationMs: 4000,
+      generation: 0,
+      resolve: vi.fn()
+    };
+    component['activeSpeechItem'] = item;
+    component.speechPlaybackActive.set(true);
+    component.speechSentences.set(item.sentences);
+    component.activeSpeechSentenceIndex.set(0);
+
+    await component.nextSpeechSentence();
+    expect(item.sentenceIndex).toBe(1);
+    expect(component.currentSpeechSentence()).toBe('Second.');
+
+    await component.previousSpeechSentence();
+    expect(item.sentenceIndex).toBe(0);
+    expect(component.currentSpeechSentence()).toBe('First.');
+    expect(stop).toHaveBeenCalledTimes(2);
+  });
+
 });

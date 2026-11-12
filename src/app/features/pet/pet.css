@@ -516,11 +516,11 @@ canvas {
 
 .speech-bubble {
   position: absolute;
-  top: 8px;
+  top: clamp(8px, calc(50% - 112px), 60px);
   left: 50%;
   display: block;
   width: min(280px, calc(100% - 16px));
-  max-height: 120px;
+  max-height: 160px;
   box-sizing: border-box;
   transform: translateX(-50%);
   opacity: 0;
@@ -528,7 +528,7 @@ canvas {
   overflow: hidden;
   background: #ffffff;
   color: #222222;
-  padding: 8px 36px 8px 14px;
+  padding: 8px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 14px;
   font-family: Arial, sans-serif;
@@ -544,7 +544,7 @@ canvas {
 }
 
 .speech-bubble-text {
-  max-height: 92px;
+  max-height: 104px;
   overflow-x: hidden;
   overflow-y: auto;
   overflow-wrap: anywhere;
@@ -554,29 +554,74 @@ canvas {
   scrollbar-color: #b7b7c4 transparent;
 }
 
-.speech-stop {
-  position: absolute;
-  top: 4px;
-  right: 4px;
+.speech-bubble.minimized {
+  max-height: 86px;
+  padding: 6px 8px;
+}
+
+.speech-bubble-toolbar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.speech-bubble-count {
+  flex: 0 0 auto;
+  color: #5a5a66;
+  font: 600 11px Arial, sans-serif;
+}
+
+.speech-bubble-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+}
+
+.speech-bubble-controls button {
   display: grid;
   width: 25px;
   height: 25px;
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 50%;
+  border-radius: 6px;
   background: #eeeef3;
   color: #333340;
-  font: 20px/1 Arial, sans-serif;
+  font: 600 17px/1 Arial, sans-serif;
   cursor: pointer;
   pointer-events: auto;
 }
 
-.speech-stop:hover,
-.speech-stop:focus-visible {
+.speech-bubble-controls button:hover,
+.speech-bubble-controls button:focus-visible {
   background: #dedee8;
   outline: 2px solid #8b5cf6;
   outline-offset: 1px;
+}
+
+.speech-bubble-controls button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.speech-bubble-preview {
+  display: -webkit-box;
+  max-height: 36px;
+  overflow: hidden;
+  margin-top: 3px;
+  color: #222;
+  font: 600 12px/16px Arial, sans-serif;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.speech-stop {
+  border-radius: 50%;
 }
 
 .speech-bubble.visible {

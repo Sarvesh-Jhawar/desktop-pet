@@ -162,10 +162,10 @@ export class SpeechService {
   async stop(): Promise<void> {
     const stoppedRequestId = this.activeRequestId;
     this.requestSerial += 1;
-    this.activeRequestId = undefined;
     this.pendingEvents.clear();
     try {
       await invoke('speech_stop');
+      this.activeRequestId = undefined;
       this.status.set('idle');
       this.activeRequest.set(false);
       if (stoppedRequestId !== undefined) {
@@ -175,8 +175,9 @@ export class SpeechService {
         this.clearPlaybackCallbacks(stoppedRequestId);
       }
     } catch (error) {
+      this.activeRequestId = stoppedRequestId;
       this.status.set('error');
-      this.activeRequest.set(false);
+      this.activeRequest.set(stoppedRequestId !== undefined);
       this.errorMessage.set(String(error));
       throw error;
     }

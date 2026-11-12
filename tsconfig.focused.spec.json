@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.spec.json",
+  "include": [
+    "src/app/features/pet/pet.spec.ts",
+    "src/app/core/motivational-story.service.spec.ts",
+    "src/**/*.d.ts"
+  ]
+}

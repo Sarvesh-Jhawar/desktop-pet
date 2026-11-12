@@ -8,8 +8,9 @@ Desktop Pet is an Angular desktop companion application with an Electron shell. 
 - Dashboard for overview and status
 - Task and reminder management
 - Focus timer and productivity tracking
-- Motivational quotes and pet behavior responses
-- Speech synthesis support for voice interactions
+- Random motivational quotes and inspirational mini-stories
+- Pet behavior responses
+- Speech synthesis with sentence navigation and an expandable dialogue bubble
 - Frameless transparent pet window, always-on-top behavior, system tray, notifications, and autostart using Electron
 
 ## Tech Stack

@@ -72,7 +72,20 @@
       [style.top]="quickActionPosition().y + '%'"
       (contextmenu)="$event.preventDefault()"
     >
-      @if (quickReadOutMode()) {
+      @if (quickMotivationMode()) {
+        <div class="quick-read-out-menu">
+          <strong>Motivation</strong>
+          <button type="button" class="motivation-quote-choice" (click)="selectMotivationalQuote()">
+            Motivational quote
+          </button>
+          <button type="button" class="motivation-story-choice" (click)="selectInterestingStory()">
+            Interesting story
+          </button>
+          <button type="button" class="read-out-back" (click)="quickMotivationMode.set(false)">
+            Back
+          </button>
+        </div>
+      } @else if (quickReadOutMode()) {
         <div class="quick-read-out-menu">
           <strong>Read out</strong>
           <button type="button" (click)="readOutTasks()">Tasks</button>
@@ -236,8 +249,8 @@
         <button class="quick-action start-focus" (click)="openQuickTimerOptions()">
           Start timer
         </button>
-        <button class="quick-action motivate-action" (click)="motivate()">
-          Motivate me
+        <button class="quick-action motivate-action" (click)="openQuickMotivationMenu()">
+          Motivation
         </button>
         <button class="quick-action add-task" (click)="beginQuickTask()">
           Tasks
@@ -267,17 +280,59 @@
   <div
     class="speech-bubble"
     [class.visible]="bubbleVisible()"
+    [class.minimized]="speechBubbleMinimized()"
     [attr.aria-hidden]="!bubbleVisible()"
     [attr.inert]="bubbleVisible() ? null : ''"
   >
-    <div class="speech-bubble-text">{{ bubbleMessage() }}</div>
-    <button
-      class="speech-stop"
-      type="button"
-      aria-label="Stop speaking"
-      title="Stop speaking"
-      (click)="stopSpeech()"
-    >×</button>
+    <div class="speech-bubble-toolbar">
+      @if (speechSentences().length > 0) {
+        <span class="speech-bubble-count">
+          {{ activeSpeechSentenceIndex() + 1 }} / {{ speechSentences().length }}
+        </span>
+      }
+      <div class="speech-bubble-controls">
+        @if (speechSentences().length > 0) {
+          <button
+            type="button"
+            aria-label="Previous sentence"
+            title="Previous sentence"
+            [disabled]="!speechPlaybackActive() || activeSpeechSentenceIndex() <= 0"
+            (click)="previousSpeechSentence()"
+          >‹</button>
+        }
+        <button
+          type="button"
+          [attr.aria-label]="speechBubbleMinimized() ? 'Expand dialogue' : 'Minimize dialogue'"
+          [title]="speechBubbleMinimized() ? 'Expand dialogue' : 'Minimize dialogue'"
+          (click)="speechBubbleMinimized.update(minimized => !minimized)"
+        >{{ speechBubbleMinimized() ? '+' : '−' }}</button>
+        @if (speechSentences().length > 0) {
+          <button
+            type="button"
+            aria-label="Next sentence"
+            title="Next sentence"
+            [disabled]="!speechPlaybackActive() || activeSpeechSentenceIndex() >= speechSentences().length - 1"
+            (click)="nextSpeechSentence()"
+          >›</button>
+        }
+        @if (speechPlaybackActive()) {
+          <button
+            class="speech-stop"
+            type="button"
+            aria-label="Stop speaking"
+            title="Stop speaking"
+            (click)="stopSpeech()"
+          >×</button>
+        }
+      </div>
+    </div>
+    @if (speechBubbleMinimized()) {
+      <div class="speech-bubble-preview">
+        {{ currentSpeechSentence() || bubbleMessage() }}
+      </div>
+    } @else {
+      <div class="speech-bubble-text">{{ bubbleMessage() }}</div>
+    }
   </div>
 
   <canvas
