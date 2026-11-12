@@ -41,7 +41,7 @@ describe('MotivationalStoryService', () => {
         title: 'Second',
         category: 'resilience',
         story: 'Story two.',
-        takeaway: 'Keep learning.',
+        takeaway: null,
         readingTimeMinutes: 1,
         sources: []
       },

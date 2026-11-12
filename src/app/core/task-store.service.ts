@@ -10,15 +10,15 @@ const LEGACY_TEST_TASK_TITLE = 'Test task from Phase 2 Step 1';
 export class TaskStoreService {
   private store?: Store;
 
-  private async getStore(): Promise<Store> {
-    if (!this.store) {
+  private async getStore(refresh = false): Promise<Store> {
+    if (refresh || !this.store) {
       this.store = await load('settings.json', { autoSave: false });
     }
     return this.store;
   }
 
   async getAllTasks(): Promise<Task[]> {
-    const store = await this.getStore();
+    const store = await this.getStore(true);
     const tasks = await store.get<Task[]>(TASKS_KEY);
     const savedTasks = tasks ?? [];
     const cleanedTasks = savedTasks.filter(

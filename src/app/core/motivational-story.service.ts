@@ -7,7 +7,7 @@ export interface MotivationalStory {
   title: string;
   category: string;
   story: string;
-  takeaway: string;
+  takeaway: string | null;
   readingTimeMinutes: number;
   sources: Array<{
     label: string;
@@ -66,8 +66,9 @@ export class MotivationalStoryService {
           typeof story.story === 'string' &&
           story.story.trim().length > 0 &&
           'takeaway' in story &&
-          typeof story.takeaway === 'string' &&
-          story.takeaway.trim().length > 0 &&
+          (story.takeaway === null ||
+            (typeof story.takeaway === 'string' &&
+              story.takeaway.trim().length > 0)) &&
           'readingTimeMinutes' in story &&
           typeof story.readingTimeMinutes === 'number' &&
           'sources' in story &&

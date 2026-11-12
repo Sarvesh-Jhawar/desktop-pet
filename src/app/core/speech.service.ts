@@ -175,9 +175,12 @@ export class SpeechService {
         this.clearPlaybackCallbacks(stoppedRequestId);
       }
     } catch (error) {
-      this.activeRequestId = stoppedRequestId;
+      const requestStillActive =
+        stoppedRequestId !== undefined &&
+        this.playbackCallbacks.has(stoppedRequestId);
+      this.activeRequestId = requestStillActive ? stoppedRequestId : undefined;
       this.status.set('error');
-      this.activeRequest.set(stoppedRequestId !== undefined);
+      this.activeRequest.set(requestStillActive);
       this.errorMessage.set(String(error));
       throw error;
     }

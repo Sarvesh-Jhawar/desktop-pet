@@ -57,6 +57,7 @@ interface SpeechQueueItem {
   message: string;
   sentences: string[];
   sentenceIndex: number;
+  navigationVersion: number;
   fallbackDurationMs: number;
   generation: number;
   resolve: () => void;
@@ -127,6 +128,8 @@ export class Pet implements OnInit, OnDestroy {
   private readonly speechQueue: SpeechQueueItem[] = [];
 
   private activeSpeechItem?: SpeechQueueItem;
+
+  private speechProgressTimeout?: ReturnType<typeof setTimeout>;
 
   private processingSpeechQueue = false;
 
@@ -321,7 +324,7 @@ export class Pet implements OnInit, OnDestroy {
       this.unlistenPetFocus = await getCurrentWindow().onFocusChanged(
         ({ payload: focused }) => {
           this.petFocused = focused;
-          if (focused && this.riveLoaded) {
+          if (focused) {
             void this.greetOnFirstShow().catch(error => {
               console.error('Failed to prepare Milly’s startup greeting:', error);
             });
@@ -673,34 +676,40 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
   private async loadStartupGreeting(): Promise<void> {
     const generation = this.speechQueueGeneration;
-    let messages: string[];
+    await this.enqueueSpeech(
+      "Hi Sarvesh! Good to see you. Let's make today productive!",
+      4000,
+      false,
+      generation
+    );
+    if (generation !== this.speechQueueGeneration) return;
+
     try {
       const pendingTasks = (await this.taskStore.getAllTasks()).filter(
         task => !task.completed
       );
-      messages = this.createStartupGreeting(pendingTasks);
+      for (const message of this.createStartupGreeting(pendingTasks)) {
+        if (generation !== this.speechQueueGeneration) return;
+        await this.enqueueSpeech(message, 4000, false, generation);
+      }
     } catch (error) {
       console.error('Failed to load pending tasks for Milly’s greeting:', error);
-      messages = ["Hi Sarvesh! Good to see you. Let's make today productive!"];
-    }
-
-    for (const message of messages) {
-      if (generation !== this.speechQueueGeneration) return;
-      await this.enqueueSpeech(message, 4000, false, generation);
+      if (generation === this.speechQueueGeneration) {
+        await this.enqueueSpeech("Let's make today productive!", 4000, false, generation);
+      }
     }
   }
 
   private createStartupGreeting(pendingTasks: Task[]): string[] {
     if (pendingTasks.length === 0) {
       return [
-        'Hi Sarvesh! Good to see you. You have no pending tasks right now. What shall we work on today?'
+        'You have no pending tasks right now. What shall we work on today?'
       ];
     }
 
     const taskCount = pendingTasks.length;
     const taskLabel = taskCount === 1 ? 'task' : 'tasks';
-    let currentMessage =
-      `Hi Sarvesh! Good to see you. You have ${taskCount} pending ${taskLabel}.`;
+    let currentMessage = `You have ${taskCount} pending ${taskLabel}.`;
     const messages: string[] = [];
 
     for (const [index, task] of pendingTasks.entries()) {
@@ -771,6 +780,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         message,
         sentences: splitIntoSentences(message),
         sentenceIndex: 0,
+        navigationVersion: 0,
         fallbackDurationMs,
         generation,
         resolve
@@ -807,9 +817,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
             if (item.generation !== this.speechQueueGeneration) break;
 
             const sentenceIndex = item.sentenceIndex;
-            const sentence = item.sentences[sentenceIndex];
+            const navigationVersion = item.navigationVersion;
+            const speechText = item.sentences.slice(sentenceIndex).join(' ');
             this.activeSpeechSentenceIndex.set(sentenceIndex);
-            this.currentSpeechSentence.set(sentence);
+            this.currentSpeechSentence.set(item.sentences[sentenceIndex]);
 
             let cancelled = false;
             let playbackUnavailable = false;
@@ -820,10 +831,11 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
               }
               if (item.generation !== this.speechQueueGeneration) break;
 
-              await this.speech.speakAndWait(sentence, {
+              await this.speech.speakAndWait(speechText, {
                 onPlaybackStart: () => {
                   bubbleShown = true;
                   this.speechPlaybackActive.set(true);
+                  this.scheduleSpeechProgress(item, sentenceIndex);
                   bubbleShowTimeout = setTimeout(() => {
                     bubbleShowTimeout = undefined;
                     if (!cancelled && !playbackEnded) {
@@ -834,6 +846,10 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
                 onPlaybackEnd: () => {
                   playbackEnded = true;
                   this.speechPlaybackActive.set(false);
+                  this.clearSpeechProgress();
+                  item.sentenceIndex = item.sentences.length - 1;
+                  this.activeSpeechSentenceIndex.set(item.sentenceIndex);
+                  this.currentSpeechSentence.set(item.sentences[item.sentenceIndex]);
                   if (bubbleShowTimeout) {
                     clearTimeout(bubbleShowTimeout);
                     bubbleShowTimeout = undefined;
@@ -843,16 +859,18 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
                   playbackUnavailable = true;
                   bubbleShown = true;
                   this.speechPlaybackActive.set(false);
+                  this.clearSpeechProgress();
                   this.showBubble(item.message, item.fallbackDurationMs);
                 },
                 onPlaybackCancelled: () => {
                   cancelled = true;
                   this.speechPlaybackActive.set(false);
+                  this.clearSpeechProgress();
                   if (bubbleShowTimeout) {
                     clearTimeout(bubbleShowTimeout);
                     bubbleShowTimeout = undefined;
                   }
-                  if (item.sentenceIndex === sentenceIndex) {
+                  if (item.navigationVersion === navigationVersion) {
                     this.hideBubble(item.message);
                   }
                 }
@@ -876,18 +894,17 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
               break;
             }
             if (cancelled) {
-              if (item.sentenceIndex !== sentenceIndex) continue;
+              if (item.navigationVersion !== navigationVersion) continue;
               const remaining = this.speechQueue.splice(0);
               for (const queuedItem of remaining) {
                 queuedItem.resolve();
               }
               break;
             }
-            if (item.sentenceIndex === sentenceIndex) {
-              item.sentenceIndex += 1;
-            }
+            item.sentenceIndex = item.sentences.length;
           }
         } finally {
+          this.clearSpeechProgress();
           if (bubbleShowTimeout) {
             clearTimeout(bubbleShowTimeout);
           }
@@ -1545,6 +1562,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
   async stopSpeech(): Promise<void> {
     this.speechQueueGeneration += 1;
+    this.clearSpeechProgress();
     this.speechPlaybackActive.set(false);
     for (const queuedItem of this.speechQueue.splice(0)) {
       queuedItem.resolve();
@@ -1568,6 +1586,36 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     await this.navigateSpeechSentence(1);
   }
 
+  private scheduleSpeechProgress(
+    item: SpeechQueueItem,
+    sentenceIndex: number
+  ): void {
+    this.clearSpeechProgress();
+    item.sentenceIndex = sentenceIndex;
+    this.activeSpeechSentenceIndex.set(sentenceIndex);
+    this.currentSpeechSentence.set(item.sentences[sentenceIndex]);
+    if (sentenceIndex >= item.sentences.length - 1) return;
+
+    const wordCount = item.sentences[sentenceIndex].match(/\S+/g)?.length ?? 1;
+    const sentenceDurationMs = Math.max(450, wordCount * 330 + 180);
+    this.speechProgressTimeout = setTimeout(() => {
+      if (
+        this.activeSpeechItem === item &&
+        this.speechPlaybackActive() &&
+        item.sentenceIndex === sentenceIndex
+      ) {
+        this.scheduleSpeechProgress(item, sentenceIndex + 1);
+      }
+    }, sentenceDurationMs);
+  }
+
+  private clearSpeechProgress(): void {
+    if (this.speechProgressTimeout) {
+      clearTimeout(this.speechProgressTimeout);
+      this.speechProgressTimeout = undefined;
+    }
+  }
+
   private async navigateSpeechSentence(direction: -1 | 1): Promise<void> {
     const item = this.activeSpeechItem;
     if (!item || !this.speechPlaybackActive()) return;
@@ -1576,7 +1624,9 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     const nextIndex = previousIndex + direction;
     if (nextIndex < 0 || nextIndex >= item.sentences.length) return;
 
+    this.clearSpeechProgress();
     item.sentenceIndex = nextIndex;
+    item.navigationVersion += 1;
     this.activeSpeechSentenceIndex.set(nextIndex);
     this.currentSpeechSentence.set(item.sentences[nextIndex]);
     try {
@@ -1587,6 +1637,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         item.sentenceIndex = previousIndex;
         this.activeSpeechSentenceIndex.set(previousIndex);
         this.currentSpeechSentence.set(item.sentences[previousIndex]);
+        this.scheduleSpeechProgress(item, previousIndex);
       }
       this.showBubble('I could not move through the speech. Please try again.', 3000);
     }
@@ -1594,6 +1645,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
   private async replaceSpeechQueue(): Promise<number> {
     this.speechQueueGeneration += 1;
+    this.clearSpeechProgress();
     this.speechPlaybackActive.set(false);
     const generation = this.speechQueueGeneration;
     for (const queuedItem of this.speechQueue.splice(0)) {
@@ -1868,7 +1920,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
           this.showBubble('I could not find an interesting story right now.', 4000);
           return;
         }
-        const speech = `${story.title}. ${story.story} The takeaway: ${story.takeaway}`;
+        const takeaway = story.takeaway ? ` The takeaway: ${story.takeaway}` : '';
+        const speech = `${story.title}. ${story.story}${takeaway}`;
         await this.enqueueSpeech(speech, 120000);
         return;
       }

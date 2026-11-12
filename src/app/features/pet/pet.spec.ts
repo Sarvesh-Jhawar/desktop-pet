@@ -220,6 +220,24 @@ describe('Pet', () => {
     expect(component.bubbleMessage()).toContain('The takeaway: Small steps matter.');
   });
 
+  it('speaks stories without adding a takeaway when none is provided', async () => {
+    motivationalStories.next.mockResolvedValue({
+      id: 'story_002',
+      title: 'A Curious Discovery',
+      category: 'discovery',
+      story: 'A researcher noticed an unexpected result.',
+      takeaway: null,
+      readingTimeMinutes: 1,
+      sources: []
+    });
+
+    await component.selectInterestingStory();
+
+    expect(component.bubbleMessage()).toBe(
+      'A Curious Discovery. A researcher noticed an unexpected result.'
+    );
+  });
+
   it('opens the Motivation menu with quote and story choices', () => {
     component.quickActionsVisible.set(true);
     fixture.detectChanges();
@@ -257,6 +275,7 @@ describe('Pet', () => {
       message: 'First. Second.',
       sentences: ['First.', 'Second.'],
       sentenceIndex: 0,
+      navigationVersion: 0,
       fallbackDurationMs: 4000,
       generation: 0,
       resolve: vi.fn()
@@ -274,6 +293,23 @@ describe('Pet', () => {
     expect(item.sentenceIndex).toBe(0);
     expect(component.currentSpeechSentence()).toBe('First.');
     expect(stop).toHaveBeenCalledTimes(2);
+  });
+
+  it('speaks the welcome before waiting for saved tasks', async () => {
+    const taskStore = TestBed.inject(TaskStoreService);
+    let resolveTasks!: (tasks: Task[]) => void;
+    vi.spyOn(taskStore, 'getAllTasks').mockReturnValue(
+      new Promise(resolve => {
+        resolveTasks = resolve;
+      })
+    );
+
+    const greeting = component['loadStartupGreeting']();
+    expect(component.bubbleMessage()).toContain('Hi Sarvesh! Good to see you.');
+
+    await Promise.resolve();
+    resolveTasks([]);
+    await greeting;
   });
 
 });
