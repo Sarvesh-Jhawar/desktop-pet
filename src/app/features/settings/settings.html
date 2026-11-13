@@ -37,6 +37,118 @@
     <span>Eyes follow cursor across the screen</span>
   </label>
 
+  <section class="body-color-controls" aria-labelledby="body-color-heading">
+    <h2 id="body-color-heading">Milly’s Body Color</h2>
+    <h3 class="color-subheading">Standard colors</h3>
+    <div class="body-color-options" role="group" aria-labelledby="body-color-heading">
+      @for (color of bodyColors; track color.id) {
+        <button
+          type="button"
+          class="body-color-option"
+          [class.selected]="currentBodyColor() === color.id"
+          [attr.aria-pressed]="currentBodyColor() === color.id"
+          (click)="setPetBodyColor(color.id)"
+        >
+          <span
+            class="body-color-swatch"
+            [style.background-color]="color.hex"
+            aria-hidden="true"
+          ></span>
+          <span>{{ color.label }}</span>
+        </button>
+      }
+    </div>
+    <div class="custom-color-controls">
+      <h3 class="color-subheading">Custom color</h3>
+      <p class="color-help">Choose a hue and shade. Use arrow keys to make fine adjustments.</p>
+      <div
+        class="spectrum-field"
+        role="slider"
+        aria-label="Color spectrum"
+        aria-valuemin="0"
+        aria-valuemax="360"
+        [attr.aria-valuenow]="spectrumHueValue()"
+        [attr.aria-valuetext]="spectrumValueText()"
+        [style.--lightness-overlay]="lightnessOverlay()"
+        tabindex="0"
+        (pointerdown)="onSpectrumPointerDown($event)"
+        (pointermove)="onSpectrumPointerMove($event)"
+        (keydown)="onSpectrumKeydown($event)"
+      >
+        <span
+          class="spectrum-marker"
+          [style.left.%]="spectrumHue() / 3.6"
+          [style.top.%]="100 - spectrumSaturation()"
+          aria-hidden="true"
+        ></span>
+      </div>
+      <label class="shade-control">
+        <span>Shade: {{ lightness() }}%</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          [value]="lightness()"
+          [attr.aria-valuetext]="lightness() + ' percent lightness'"
+          (input)="updateLightness($event)"
+        />
+      </label>
+      <div class="custom-color-controls-row">
+        <label class="custom-color-picker">
+          <span>Selected color</span>
+          <span
+            class="custom-color-preview"
+            [style.background-color]="customColor()"
+            aria-hidden="true"
+          ></span>
+          <input
+            type="color"
+            aria-label="Choose an exact custom color"
+            [value]="customColor()"
+            (input)="updateCustomColorDraft($event)"
+          />
+        </label>
+        <label class="hex-color-field">
+          <span>Hex</span>
+          <input
+            type="text"
+            aria-label="Hex color"
+            aria-describedby="color-format-help"
+            [attr.aria-invalid]="colorError() ? 'true' : null"
+            maxlength="7"
+            placeholder="#A1B2C3"
+            [value]="customColor()"
+            (input)="updateCustomColorDraft($event)"
+          />
+        </label>
+        <button type="button" class="apply-color-button" (click)="applyCustomColor()">
+          Apply color
+        </button>
+      </div>
+      <p id="color-format-help" class="color-help">You can enter any 6-digit hex color.</p>
+      @if (colorError()) {
+        <p class="color-error" role="alert">{{ colorError() }}</p>
+      }
+    </div>
+  </section>
+
+  <section class="body-design-controls" aria-labelledby="body-design-heading">
+    <h2 id="body-design-heading">Milly’s Designs</h2>
+    <div class="body-design-options">
+      @for (design of bodyDesigns; track design.id) {
+        <label class="body-design-option">
+          <input
+            type="checkbox"
+            [checked]="selectedDesigns().includes(design.id)"
+            (change)="togglePetDesign(design.id)"
+          />
+          <span>{{ design.label }}</span>
+        </label>
+      }
+    </div>
+  </section>
+
   <section class="speech-controls" aria-labelledby="speech-heading">
     <h2 id="speech-heading">Voice</h2>
     <div class="speech-actions">

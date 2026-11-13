@@ -21,7 +21,9 @@
 
 .pet-container.quick-actions-overlay canvas,
 .pet-container.quick-actions-overlay .speech-bubble,
-.pet-container.quick-actions-overlay .health-banner {
+.pet-container.quick-actions-overlay .health-banner,
+.pet-container.quick-actions-overlay .pet-design-overlay,
+.pet-container.transparency-test-mode .pet-design-overlay {
   display: none;
 }
 
@@ -64,6 +66,15 @@ canvas {
   position: absolute;
   top: 0;
   left: 0;
+  pointer-events: none;
+}
+
+.pet-design-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  overflow: visible;
   pointer-events: none;
 }
 

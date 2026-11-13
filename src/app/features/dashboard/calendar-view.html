@@ -1,0 +1,228 @@
+<section class="calendar-panel glass-panel" aria-label="Schedule and deadlines">
+  <header class="calendar-heading">
+    <div>
+      <p class="eyebrow">Plan your focus</p>
+      <h2>Schedule &amp; Deadlines</h2>
+    </div>
+    <div class="calendar-heading-actions">
+      <button class="today-button" type="button" (click)="goToToday()">Today</button>
+      <button class="btn-primary" type="button" (click)="openAddEvent()">+ Add event</button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="calendar-error" role="alert">{{ error() }}</p>
+  }
+
+  <div class="calendar-layout">
+    <section class="month-panel" aria-label="Monthly calendar">
+      <header class="month-heading">
+        <h3 aria-live="polite">{{ monthLabel() }}</h3>
+        <div class="month-controls">
+          <button type="button" aria-label="Previous month" (click)="changeMonth(-1)">‹</button>
+          <button type="button" aria-label="Next month" (click)="changeMonth(1)">›</button>
+        </div>
+      </header>
+
+      <div class="calendar-filters" role="search" aria-label="Filter calendar events">
+        <label class="search-control">
+          <span class="visually-hidden">Search events</span>
+          <input
+            type="search"
+            placeholder="Search events"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)"
+          />
+        </label>
+        <label>
+          <span class="visually-hidden">Filter by event type</span>
+          <select
+            [ngModel]="typeFilter()"
+            (ngModelChange)="typeFilter.set($event)"
+          >
+            <option value="all">All types</option>
+            @for (type of eventTypes; track type.value) {
+              <option [value]="type.value">{{ type.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span class="visually-hidden">Filter by completion</span>
+          <select
+            [ngModel]="completionFilter()"
+            (ngModelChange)="completionFilter.set($event)"
+          >
+            <option value="open">Active</option>
+            <option value="completed">Completed</option>
+            <option value="all">All status</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="month-grid">
+        @for (weekday of weekdays; track weekday) {
+          <span class="weekday">{{ weekday }}</span>
+        }
+        @for (day of calendarDays(); track day.date) {
+          <button
+            type="button"
+            class="day-cell"
+            [class.outside-month]="!day.isCurrentMonth"
+            [class.today]="day.isToday"
+            [class.selected]="selectedDate() === day.date"
+            [id]="'calendar-day-' + day.date"
+            [attr.aria-label]="day.accessibleLabel"
+            [attr.aria-pressed]="selectedDate() === day.date"
+            [attr.tabindex]="selectedDate() === day.date ? 0 : -1"
+            (click)="selectDate(day.date)"
+            (keydown)="onDayKeydown($event, day)"
+          >
+            <span>{{ day.dayNumber }}</span>
+            @if (day.hasEvents) {
+              <span class="event-indicator" aria-hidden="true"></span>
+            }
+          </button>
+        }
+      </div>
+    </section>
+
+    <aside class="agenda-panel" aria-label="Selected day agenda">
+      <div class="agenda-heading">
+        <div>
+          <p class="eyebrow">Selected day</p>
+          <h3 aria-live="polite">{{ selectedDateLabel() }}</h3>
+        </div>
+      </div>
+
+      @if (isAddingEvent()) {
+        <form class="event-form" (ngSubmit)="addEvent()">
+          <label>
+            Event title
+            <input name="title" [(ngModel)]="newTitle" required maxlength="120" />
+          </label>
+          <div class="form-row">
+            <label>
+              Date
+              <input name="date" type="date" [(ngModel)]="newDate" required />
+            </label>
+            <label>
+              Time
+              <input name="time" type="time" [(ngModel)]="newTime" />
+            </label>
+          </div>
+          <label>
+            Type
+            <select name="type" [(ngModel)]="newType">
+              @for (type of eventTypes; track type.value) {
+                <option [value]="type.value">{{ type.label }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Notes
+            <textarea name="description" [(ngModel)]="newDescription" rows="2" maxlength="500"></textarea>
+          </label>
+          <label>
+            Reminder
+            <select name="reminder" [(ngModel)]="newReminderMinutes">
+              @for (option of reminderOptions; track option.label) {
+                <option [ngValue]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </label>
+          <div class="form-actions">
+            <button type="button" class="secondary-button" (click)="cancelForm()">Cancel</button>
+            <button class="btn-primary" type="submit">
+              {{ editingEventId() ? 'Save changes' : 'Save event' }}
+            </button>
+          </div>
+        </form>
+      } @else {
+        <button class="add-day-event" type="button" (click)="openAddEvent()">+ Add to this day</button>
+        <div class="event-list">
+          @for (event of selectedEvents(); track event.id) {
+            <article
+              class="event-card"
+              [class.event-completed]="event.completed"
+              [class.event-meeting]="event.type === 'meeting'"
+              [class.event-deadline]="event.type === 'deadline'"
+              [class.event-sprint]="event.type === 'sprint'"
+              [class.event-exam]="event.type === 'exam'"
+            >
+              <div class="event-card-heading">
+                <span class="event-time">{{ event.time || 'All day' }}</span>
+                <div class="event-actions">
+                  <button
+                    type="button"
+                    class="icon-button"
+                    [attr.aria-label]="'Edit ' + event.title"
+                    (click)="editEvent(event)"
+                  >Edit</button>
+                  <button
+                    type="button"
+                    class="icon-button delete-event"
+                    [attr.aria-label]="'Delete ' + event.title"
+                    (click)="deleteEvent(event)"
+                  >Delete</button>
+                </div>
+              </div>
+              <div class="event-title-row">
+                <button
+                  type="button"
+                  class="complete-button"
+                  [attr.aria-label]="(event.completed ? 'Reopen ' : 'Complete ') + event.title"
+                  [attr.aria-pressed]="!!event.completed"
+                  (click)="toggleComplete(event)"
+                >{{ event.completed ? '✓ Completed' : 'Mark complete' }}</button>
+                <h4>{{ event.title }}</h4>
+              </div>
+              <span class="event-type">{{ event.type }}</span>
+              @if (event.reminderMinutesBefore !== undefined) {
+                <span class="reminder-label">
+                  Reminder: {{ event.reminderMinutesBefore }} min before
+                </span>
+              }
+              @if (event.description) {
+                <p>{{ event.description }}</p>
+              }
+              @if (event.reminderTriggered && !event.reminderDismissed && !event.completed) {
+                <div class="reminder-actions" role="group" [attr.aria-label]="'Reminder actions for ' + event.title">
+                  <span role="status">Reminder due</span>
+                  <button type="button" (click)="snoozeReminder(event)">Snooze 10 min</button>
+                  <button type="button" (click)="dismissReminder(event)">Dismiss</button>
+                </div>
+              } @else if (event.reminderSnoozedUntil) {
+                <span class="snoozed-label">Snoozed until {{ event.reminderSnoozedUntil | date:'shortTime' }}</span>
+              }
+            </article>
+          } @empty {
+            <p class="empty-state">
+              @if (isLoading()) {
+                <span role="status">Loading calendar events...</span>
+              } @else if (loadFailed()) {
+                Calendar events could not be loaded.
+                <button type="button" class="retry-button" (click)="refreshEvents()">Try again</button>
+              } @else if (events().length === 0) {
+                Nothing scheduled yet. Add an event to get started.
+              } @else {
+                No events match these filters for this day.
+              }
+            </p>
+          }
+        </div>
+      }
+
+      @if (upcomingEvents().length) {
+        <section class="upcoming-section" aria-label="Upcoming events">
+          <h4>Coming up</h4>
+          @for (event of upcomingEvents(); track event.id) {
+            <button class="upcoming-event" type="button" (click)="selectDate(event.date)">
+              <span class="upcoming-date">{{ event.date | date:'mediumDate' }}</span>
+              <span class="upcoming-title">{{ event.title }}</span>
+            </button>
+          }
+        </section>
+      }
+    </aside>
+  </div>
+</section>

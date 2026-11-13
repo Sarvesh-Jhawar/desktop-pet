@@ -5,6 +5,7 @@ import { Pet } from './pet';
 import { Task } from '../../shared/task.model';
 import { MotivationalQuoteService } from '../../core/motivational-quote.service';
 import { MotivationalStoryService } from '../../core/motivational-story.service';
+import { PetStateService } from '../../core/pet-state.service';
 import { SpeechService } from '../../core/speech.service';
 import { TaskStoreService } from '../../core/task-store.service';
 import type { MotivationalQuote } from '../../core/motivational-quote.service';
@@ -84,6 +85,24 @@ describe('Pet', () => {
         expect(canvas.style.width).toBe(`${pixels}px`);
         expect(canvas.style.height).toBe(`${pixels}px`);
       }
+    }
+  });
+
+  it('keeps the design overlay aligned with each avatar size', () => {
+    const overlay = fixture.nativeElement.querySelector(
+      '.pet-design-overlay'
+    ) as SVGElement;
+
+    for (const [size, pixels] of [
+      ['small', 150],
+      ['medium', 250],
+      ['large', 350]
+    ] as const) {
+      component['applyPetSize'](size);
+      fixture.detectChanges();
+
+      expect(overlay.style.width).toBe(`${pixels}px`);
+      expect(overlay.style.height).toBe(`${pixels}px`);
     }
   });
 
@@ -236,6 +255,57 @@ describe('Pet', () => {
     expect(component.bubbleMessage()).toBe(
       'A Curious Discovery. A researcher noticed an unexpected result.'
     );
+  });
+
+  it('uses the speaking animation during playback and returns to idle', async () => {
+    const petState = TestBed.inject(PetStateService);
+    const speech = TestBed.inject(SpeechService);
+    vi.spyOn(speech, 'isSpeaking').mockResolvedValue(false);
+    vi.spyOn(speech, 'speakAndWait').mockImplementation(
+      async (_text, callbacks) => {
+        callbacks?.onPlaybackStart?.();
+        expect(petState.getState()).toBe('talking');
+        callbacks?.onPlaybackEnd?.();
+      }
+    );
+
+    await component['enqueueSpeech']('Hello there.', 1000);
+
+    expect(petState.getState()).toBe('idle');
+  });
+
+  it('returns to idle when speech playback is cancelled', async () => {
+    const petState = TestBed.inject(PetStateService);
+    const speech = TestBed.inject(SpeechService);
+    vi.spyOn(speech, 'isSpeaking').mockResolvedValue(false);
+    vi.spyOn(speech, 'speakAndWait').mockImplementation(
+      async (_text, callbacks) => {
+        callbacks?.onPlaybackStart?.();
+        callbacks?.onPlaybackCancelled?.();
+      }
+    );
+
+    await component['enqueueSpeech']('Hello there.', 1000);
+
+    expect(petState.getState()).toBe('idle');
+  });
+
+  it('keeps an active pet state while speech plays', async () => {
+    const petState = TestBed.inject(PetStateService);
+    const speech = TestBed.inject(SpeechService);
+    petState.setState('celebrating');
+    vi.spyOn(speech, 'isSpeaking').mockResolvedValue(false);
+    vi.spyOn(speech, 'speakAndWait').mockImplementation(
+      async (_text, callbacks) => {
+        callbacks?.onPlaybackStart?.();
+        expect(petState.getState()).toBe('celebrating');
+        callbacks?.onPlaybackEnd?.();
+      }
+    );
+
+    await component['enqueueSpeech']('Well done!', 1000);
+
+    expect(petState.getState()).toBe('celebrating');
   });
 
   it('opens the Motivation menu with quote and story choices', () => {

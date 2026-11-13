@@ -36,6 +36,246 @@ h1 {
   font-size: 11px;
 }
 
+.body-color-controls {
+  margin-top: 28px;
+}
+
+.body-color-controls h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.color-subheading {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin: 16px 0 8px;
+}
+
+.body-color-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.body-color-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.body-color-option:hover,
+.body-color-option.selected {
+  border-color: var(--accent-start);
+  color: var(--text-primary);
+}
+
+.body-color-option:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
+}
+
+.body-color-swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+}
+
+.custom-color-controls {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-top: 14px;
+  padding: 12px;
+}
+
+.custom-color-controls .color-subheading {
+  color: var(--text-primary);
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+
+.spectrum-field {
+  background-image:
+    linear-gradient(to bottom, transparent, #fff),
+    linear-gradient(var(--lightness-overlay), var(--lightness-overlay)),
+    linear-gradient(
+      to right,
+      #f00 0%,
+      #ff0 16.67%,
+      #0f0 33.33%,
+      #0ff 50%,
+      #00f 66.67%,
+      #f0f 83.33%,
+      #f00 100%
+    );
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 8px;
+  cursor: crosshair;
+  height: 190px;
+  margin-top: 12px;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+}
+
+.spectrum-field:focus-visible {
+  outline: 2px solid var(--accent-end);
+  outline-offset: 3px;
+}
+
+.spectrum-marker {
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #17151f, 0 1px 5px rgba(0, 0, 0, 0.7);
+  height: 14px;
+  pointer-events: none;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 14px;
+}
+
+.shade-control {
+  color: var(--text-secondary);
+  display: grid;
+  font-size: 12px;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.shade-control input {
+  accent-color: var(--accent-start);
+  cursor: pointer;
+  width: 100%;
+}
+
+.custom-color-controls-row {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(110px, 1fr) minmax(100px, 0.8fr) auto;
+}
+
+.custom-color-picker,
+.hex-color-field {
+  color: var(--text-secondary);
+  display: grid;
+  font-size: 12px;
+  gap: 6px;
+}
+
+.custom-color-picker {
+  align-items: center;
+  grid-template-columns: 1fr 38px;
+}
+
+.custom-color-picker > span:first-child {
+  grid-column: 1 / -1;
+}
+
+.custom-color-preview {
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 6px;
+  height: 32px;
+  width: 100%;
+}
+
+.custom-color-picker input[type='color'] {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  cursor: pointer;
+  height: 36px;
+  padding: 2px;
+  width: 38px;
+}
+
+.hex-color-field input {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font: inherit;
+  height: 36px;
+  padding: 0 9px;
+  text-transform: uppercase;
+}
+
+.apply-color-button {
+  background: var(--accent-gradient);
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  min-height: 36px;
+  padding: 8px 12px;
+}
+
+.color-help,
+.color-error {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin: 8px 0 0;
+}
+
+.color-error {
+  color: #ffb4ab;
+}
+
+.custom-color-controls input:focus-visible,
+.apply-color-button:focus-visible,
+.shade-control input:focus-visible {
+  outline: 2px solid var(--accent-end);
+  outline-offset: 2px;
+}
+
+.body-design-controls {
+  margin-top: 24px;
+}
+
+.body-design-controls h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.body-design-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.body-design-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.body-design-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-start);
+}
+
+.body-design-option:focus-within {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
 .size-controls {
   margin-top: 28px;
 }
@@ -117,4 +357,22 @@ h1 {
 .size-options button:focus-visible {
   outline: 2px solid var(--text-primary);
   outline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  .settings-panel {
+    padding: 20px 14px;
+  }
+
+  .custom-color-controls-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .custom-color-picker {
+    grid-column: 1 / -1;
+  }
+
+  .apply-color-button {
+    grid-column: 1 / -1;
+  }
 }

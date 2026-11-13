@@ -352,4 +352,54 @@
     aria-label="Milly desktop pet"
   ></canvas>
 
+  <svg
+    class="pet-design-overlay"
+    viewBox="0 0 250 250"
+    preserveAspectRatio="none"
+    [style.width.px]="petCanvasSize()"
+    [style.height.px]="petCanvasSize()"
+    aria-hidden="true"
+  >
+    @if (petDesigns().includes('blush')) {
+      <g fill="#f28ca8" opacity="0.62">
+        <ellipse cx="105" cy="151" rx="8" ry="4.5" />
+        <ellipse cx="177" cy="151" rx="8" ry="4.5" />
+      </g>
+    }
+
+    @if (petDesigns().includes('freckles')) {
+      <g fill="#8b5a48" opacity="0.8">
+        <circle cx="113" cy="147" r="1.5" />
+        <circle cx="118" cy="152" r="1.5" />
+        <circle cx="169" cy="147" r="1.5" />
+        <circle cx="164" cy="152" r="1.5" />
+      </g>
+    }
+
+    @if (petDesigns().includes('spots')) {
+      <g fill="#805c87" opacity="0.52">
+        <circle cx="76" cy="112" r="5" />
+        <circle cx="91" cy="94" r="3.5" />
+        <circle cx="187" cy="106" r="4" />
+        <circle cx="70" cy="143" r="2.8" />
+      </g>
+    }
+
+    @if (petDesigns().includes('stars')) {
+      <g fill="#ffe082" stroke="#fff4c2" stroke-width="1">
+        <path d="M61 91l2.4 5 5.4.7-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4-3.9-3.8 5.4-.7z" />
+        <path d="M194 92l1.8 3.7 4.1.6-3 2.9.7 4.1-3.6-1.9-3.7 1.9.7-4.1-3-2.9 4.1-.6z" />
+        <path d="M197 174l1.5 3.1 3.5.5-2.5 2.4.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.4 3.5-.5z" />
+      </g>
+    }
+
+    @if (petDesigns().includes('accessory')) {
+      <g fill="#ef6a8a" stroke="#ffd0dc" stroke-width="2">
+        <path d="M119 77c-14-13-24-5-17 5 4 5 10 5 17 2z" />
+        <path d="M123 77c14-13 24-5 17 5-4 5-10 5-17 2z" />
+        <circle cx="121" cy="79" r="4" fill="#ffd0dc" />
+      </g>
+    }
+  </svg>
+
 </div>

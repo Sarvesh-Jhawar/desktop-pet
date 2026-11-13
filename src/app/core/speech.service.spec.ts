@@ -29,6 +29,7 @@ describe('SpeechService', () => {
       onWindowMoved: vi.fn(() => () => {}),
       onGlobalCursorMove: vi.fn(() => () => {}),
       onCloseRequested: vi.fn(() => () => {}),
+      setIgnoreMouseEvents: vi.fn().mockResolvedValue(undefined),
       moveDragging: vi.fn().mockResolvedValue(undefined)
     };
     service = new SpeechService();

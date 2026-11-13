@@ -31,7 +31,12 @@ import { ReminderSchedulerService } from '../../core/reminder-scheduler.service'
 import { ReminderStoreService } from '../../core/reminder-store.service';
 import { Reminder } from '../../shared/reminder.model';
 import { TimerService, TimerState } from '../../core/timer.service';
-import { PetStateService } from '../../core/pet-state.service';
+import {
+  isPetBodyColor,
+  isPetDesignSelection,
+  PetStateService
+} from '../../core/pet-state.service';
+import type { PetDesignId } from '../../core/pet-state.service';
 import { PetRulesService } from '../../core/pet-rules.service';
 import { DialogueService } from '../../core/dialogue.service';
 import { SoundService } from '../../core/sound.service';
@@ -244,6 +249,10 @@ export class Pet implements OnInit, OnDestroy {
 
   private unlistenSoundsToggled?: () => void;
 
+  private unlistenPetBodyColorChanged?: () => void;
+
+  private unlistenPetBodyDesignsChanged?: () => void;
+
   private unlistenPetFocus?: () => void;
 
   private unlistenQuickActionCommand?: () => void;
@@ -256,6 +265,8 @@ export class Pet implements OnInit, OnDestroy {
    */
 
   currentSize: PetSize = 'medium';
+  petCanvasSize = signal(SIZE_MAP.medium);
+  petDesigns = signal<PetDesignId[]>([]);
 
 
   /*
@@ -341,6 +352,26 @@ export class Pet implements OnInit, OnDestroy {
       this.unlistenSoundsToggled = await listen<boolean>(
         'sounds-toggled',
         event => this.sound.setEnabled(event.payload)
+      );
+      this.unlistenPetBodyColorChanged = await listen<unknown>(
+        'pet-body-color-changed',
+        event => {
+          if (!isPetBodyColor(event.payload)) {
+            console.error('Received an invalid Milly body color:', event.payload);
+            return;
+          }
+          this.petState.setBodyColor(event.payload);
+        }
+      );
+      this.unlistenPetBodyDesignsChanged = await listen<unknown>(
+        'pet-body-designs-changed',
+        event => {
+          if (!isPetDesignSelection(event.payload)) {
+            console.error('Received invalid Milly designs:', event.payload);
+            return;
+          }
+          this.petDesigns.set([...new Set(event.payload)]);
+        }
       );
       this.unlistenSizeChanged =
         await listen<PetSize>(
@@ -833,6 +864,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
               await this.speech.speakAndWait(speechText, {
                 onPlaybackStart: () => {
+                  this.setSpeakingAnimation(true);
                   bubbleShown = true;
                   this.speechPlaybackActive.set(true);
                   this.scheduleSpeechProgress(item, sentenceIndex);
@@ -844,6 +876,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
                   }, SPEECH_BUBBLE_SYNC_DELAY_MS);
                 },
                 onPlaybackEnd: () => {
+                  this.setSpeakingAnimation(false);
                   playbackEnded = true;
                   this.speechPlaybackActive.set(false);
                   this.clearSpeechProgress();
@@ -856,6 +889,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
                   }
                 },
                 onPlaybackUnavailable: () => {
+                  this.setSpeakingAnimation(false);
                   playbackUnavailable = true;
                   bubbleShown = true;
                   this.speechPlaybackActive.set(false);
@@ -863,6 +897,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
                   this.showBubble(item.message, item.fallbackDurationMs);
                 },
                 onPlaybackCancelled: () => {
+                  this.setSpeakingAnimation(false);
                   cancelled = true;
                   this.speechPlaybackActive.set(false);
                   this.clearSpeechProgress();
@@ -877,6 +912,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
               });
             } catch (error) {
               console.error('Failed to speak a pet interaction:', error);
+              this.setSpeakingAnimation(false);
               this.speechPlaybackActive.set(false);
               this.showBubble(item.message, item.fallbackDurationMs);
               fallbackShown = true;
@@ -904,6 +940,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
             item.sentenceIndex = item.sentences.length;
           }
         } finally {
+          this.setSpeakingAnimation(false);
           this.clearSpeechProgress();
           if (bubbleShowTimeout) {
             clearTimeout(bubbleShowTimeout);
@@ -930,6 +967,18 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     }
   }
 
+  private setSpeakingAnimation(active: boolean): void {
+    if (active) {
+      if (this.petState.getState() === 'idle') {
+        this.petState.setState('talking');
+      }
+      return;
+    }
+
+    if (this.petState.getState() === 'talking') {
+      this.petState.resetToIdle();
+    }
+  }
 
   /*
    * =========================================================
@@ -958,6 +1007,20 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
       console.log(
         'Store loaded successfully'
       );
+
+      const savedBodyColor = await this.store.get<unknown>('millyBodyColor');
+      if (isPetBodyColor(savedBodyColor)) {
+        this.petState.setBodyColor(savedBodyColor);
+      } else if (savedBodyColor !== undefined) {
+        console.warn('Ignoring an invalid saved Milly body color:', savedBodyColor);
+      }
+
+      const savedDesigns = await this.store.get<unknown>('millyBodyDesigns');
+      if (isPetDesignSelection(savedDesigns)) {
+        this.petDesigns.set([...new Set(savedDesigns)]);
+      } else if (savedDesigns !== undefined) {
+        console.warn('Ignoring invalid saved Milly designs:', savedDesigns);
+      }
 
 
       const win =
@@ -1198,6 +1261,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
 
     this.currentSize =
       size;
+    this.petCanvasSize.set(px);
 
 
     const canvases = [
@@ -2469,6 +2533,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.unlistenTimerRequestState?.();
     this.unlistenQuickActionCommand?.();
     this.unlistenSoundsToggled?.();
+    this.unlistenPetBodyColorChanged?.();
+    this.unlistenPetBodyDesignsChanged?.();
     this.unlistenPetFocus?.();
     this.unlistenGlobalCursor?.();
     this.health.stop();
