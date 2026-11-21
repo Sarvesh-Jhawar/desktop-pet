@@ -65,6 +65,7 @@
       #quickActionWheel
       class="quick-action-wheel"
       [class.quick-task-open]="quickTaskMode()"
+      [class.is-focused]="selectedAction() !== null"
       role="dialog"
       aria-label="Milly quick actions"
       [style.width.px]="quickActionDiameter"
@@ -72,7 +73,67 @@
       [style.top]="quickActionPosition().y + '%'"
       (contextmenu)="$event.preventDefault()"
     >
-      @if (quickMotivationMode()) {
+      <svg
+        class="quick-wheel"
+        [class.hide-slices]="selectedAction() !== null || !quickWheelBaseVisible"
+        [attr.aria-hidden]="selectedAction() !== null || !quickWheelBaseVisible"
+        viewBox="0 0 220 220"
+        (mousemove)="onQuickWheelMouseMove($event)"
+      >
+        @for (action of quickWheelActions; track action.id; let i = $index) {
+          <path
+            class="quick-wheel-slice"
+            [class.active]="activeQuickActionIndex() === i"
+            [attr.d]="quickWheelSlicePath(i)"
+            role="button"
+            [attr.tabindex]="selectedAction() === null && quickWheelBaseVisible ? 0 : -1"
+            [attr.aria-label]="action.label + '. ' + action.hint"
+            (mouseenter)="setActiveQuickAction(i)"
+            (focus)="setActiveQuickAction(i)"
+            (click)="activateQuickAction(i)"
+            (keydown)="onQuickWheelKeydown($event, i)"
+          >
+            <title>{{ action.label }}: {{ action.hint }}</title>
+          </path>
+          <text
+            class="quick-wheel-icon"
+            [attr.x]="quickWheelLabelPoint(i, 70).x"
+            [attr.y]="quickWheelLabelPoint(i, 70).y"
+          >{{ action.icon }}</text>
+          <text
+            class="quick-wheel-label"
+            [class.active]="activeQuickActionIndex() === i"
+            [attr.x]="quickWheelLabelPoint(i, 88).x"
+            [attr.y]="quickWheelLabelPoint(i, 88).y"
+          >{{ action.shortLabel }}</text>
+        }
+        <circle class="quick-wheel-hub" cx="110" cy="110" r="40" />
+      </svg>
+      @if (selectedAction(); as action) {
+        <div class="quick-wheel-connectors" aria-hidden="true">
+          <svg viewBox="0 0 220 220" focusable="false">
+            <path d="M110 0v74m0 72v74M0 110h74m72 0h74" />
+          </svg>
+        </div>
+        <button
+          type="button"
+          class="quick-wheel-back"
+          aria-label="Back to quick actions"
+          (click)="goBackToWheel()"
+        >
+          <span>← Back</span>
+          <small>{{ action.shortLabel }}</small>
+        </button>
+        <div class="quick-wheel-sub-controls" role="group" [attr.aria-label]="action.label + ' options'">
+          @for (subAction of action.subActions; track subAction.id; let i = $index) {
+            <button
+              type="button"
+              class="quick-wheel-sub-action"
+              (click)="runQuickWheelSubAction(i)"
+            >{{ subAction.label }}</button>
+          }
+        </div>
+      } @else if (quickMotivationMode()) {
         <div class="quick-read-out-menu">
           <strong>Motivation</strong>
           <button type="button" class="motivation-quote-choice" (click)="selectMotivationalQuote()">
@@ -246,36 +307,6 @@
           </section>
         }
       } @else {
-        <svg class="quick-wheel" viewBox="0 0 220 220" (mousemove)="onQuickWheelMouseMove($event)">
-          @for (action of quickWheelActions; track action.id; let i = $index) {
-            <path
-              class="quick-wheel-slice"
-              [class.active]="activeQuickActionIndex() === i"
-              [attr.d]="quickWheelSlicePath(i)"
-              role="button"
-              tabindex="0"
-              [attr.aria-label]="action.label + '. ' + action.hint"
-              (mouseenter)="setActiveQuickAction(i)"
-              (focus)="setActiveQuickAction(i)"
-              (click)="activateQuickAction(i)"
-              (keydown)="onQuickWheelKeydown($event, i)"
-            >
-              <title>{{ action.label }}: {{ action.hint }}</title>
-            </path>
-            <text
-              class="quick-wheel-icon"
-              [attr.x]="quickWheelLabelPoint(i, 70).x"
-              [attr.y]="quickWheelLabelPoint(i, 70).y"
-            >{{ action.icon }}</text>
-            <text
-              class="quick-wheel-label"
-              [class.active]="activeQuickActionIndex() === i"
-              [attr.x]="quickWheelLabelPoint(i, 88).x"
-              [attr.y]="quickWheelLabelPoint(i, 88).y"
-            >{{ action.shortLabel }}</text>
-          }
-          <circle class="quick-wheel-hub" cx="110" cy="110" r="40" />
-        </svg>
         <div class="quick-wheel-center" aria-live="polite" aria-atomic="true">
           @if (activeQuickAction; as action) {
             <strong>{{ action.label }}</strong>

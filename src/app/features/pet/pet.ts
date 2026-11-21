@@ -76,12 +76,31 @@ type QuickWheelActionId =
   | 'reminder'
   | 'motivation';
 
+type QuickWheelSubActionId =
+  | 'timer-25'
+  | 'timer-5'
+  | 'timer-custom'
+  | 'task-add'
+  | 'task-complete'
+  | 'read-tasks'
+  | 'read-timers'
+  | 'read-reminders'
+  | 'reminder-create'
+  | 'motivation-quote'
+  | 'motivation-story';
+
+interface QuickWheelSubAction {
+  id: QuickWheelSubActionId;
+  label: string;
+}
+
 interface QuickWheelAction {
   id: QuickWheelActionId;
   label: string;
   shortLabel: string;
   hint: string;
   icon: string;
+  subActions: QuickWheelSubAction[];
 }
 
 function splitIntoSentences(message: string): string[] {
@@ -98,12 +117,61 @@ const SIZE_MAP: Record<PetSize, number> = {
 const QUICK_ACTION_DIAMETER = Math.round(SIZE_MAP.medium * 0.88);
 
 const QUICK_WHEEL_ACTIONS: QuickWheelAction[] = [
-  { id: 'timer', label: 'Start timer', shortLabel: 'Timer', hint: 'Choose a duration', icon: '⏱' },
-  { id: 'tasks', label: 'Tasks', shortLabel: 'Tasks', hint: 'Add or complete a task', icon: '✓' },
-  { id: 'read-out', label: 'Read out', shortLabel: 'Read out', hint: 'Hear tasks, timers, or reminders', icon: '◉' },
-  { id: 'dashboard', label: 'Dashboard', shortLabel: 'Dashboard', hint: 'Open your dashboard', icon: '▦' },
-  { id: 'reminder', label: 'Add reminder', shortLabel: 'Reminder', hint: 'Create a reminder', icon: '🔔' },
-  { id: 'motivation', label: 'Motivation', shortLabel: 'Motivate', hint: 'Get a quote or story', icon: '✦' }
+  {
+    id: 'timer',
+    label: 'Start timer',
+    shortLabel: 'Timer',
+    hint: 'Choose a duration',
+    icon: '⏱',
+    subActions: [
+      { id: 'timer-25', label: '25 min' },
+      { id: 'timer-5', label: '5 min' },
+      { id: 'timer-custom', label: 'Custom' }
+    ]
+  },
+  {
+    id: 'tasks',
+    label: 'Tasks',
+    shortLabel: 'Tasks',
+    hint: 'Add or complete a task',
+    icon: '✓',
+    subActions: [
+      { id: 'task-add', label: 'Add Task' },
+      { id: 'task-complete', label: 'Complete Task' }
+    ]
+  },
+  {
+    id: 'read-out',
+    label: 'Read out',
+    shortLabel: 'Read out',
+    hint: 'Hear tasks, timers, or reminders',
+    icon: '◉',
+    subActions: [
+      { id: 'read-tasks', label: 'Tasks' },
+      { id: 'read-timers', label: 'Timers' },
+      { id: 'read-reminders', label: 'Reminders' }
+    ]
+  },
+  { id: 'dashboard', label: 'Dashboard', shortLabel: 'Dashboard', hint: 'Open your dashboard', icon: '▦', subActions: [] },
+  {
+    id: 'reminder',
+    label: 'Add reminder',
+    shortLabel: 'Reminder',
+    hint: 'Create a reminder',
+    icon: '🔔',
+    subActions: [{ id: 'reminder-create', label: 'Create' }]
+  },
+  {
+    id: 'motivation',
+    label: 'Motivation',
+    shortLabel: 'Motivate',
+    hint: 'Get a quote or story',
+    icon: '✦',
+    subActions: [
+      { id: 'motivation-quote', label: 'Quote' },
+      { id: 'motivation-story', label: 'Story' }
+    ]
+  }
 ];
 
 const SPEECH_BUBBLE_SYNC_DELAY_MS = 180;
@@ -190,9 +258,19 @@ export class Pet implements OnInit, OnDestroy {
 
   activeQuickActionIndex = signal<number | null>(null);
 
+  selectedAction = signal<QuickWheelAction | null>(null);
+
   get activeQuickAction(): QuickWheelAction | undefined {
     const index = this.activeQuickActionIndex();
     return index === null ? undefined : this.quickWheelActions[index];
+  }
+
+  get quickWheelBaseVisible(): boolean {
+    return !this.quickTimerMode() &&
+      !this.quickReminderMode() &&
+      !this.quickReadOutMode() &&
+      !this.quickMotivationMode() &&
+      !this.quickTaskMode();
   }
 
   quickTimerMode = signal(false);
@@ -1403,6 +1481,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.quickActionError.set('');
     this.quickActionPosition.set({ x, y });
     this.quickActionsVisible.set(true);
+    this.selectedAction.set(null);
     this.activeQuickActionIndex.set(null);
     this.sound.playWheelOpen();
     setTimeout(() => {
@@ -1416,6 +1495,7 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     const wasVisible = this.quickActionsVisible();
     const closeOverlay = this.quickActionsOverlay && this.quickActionsVisible();
     this.quickActionsVisible.set(false);
+    this.selectedAction.set(null);
     this.activeQuickActionIndex.set(null);
     if (wasVisible) this.sound.playWheelClose();
     this.quickTimerMode.set(false);
@@ -1492,26 +1572,101 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     if (!action) return;
 
     this.sound.playWheelConfirm();
-    switch (action.id) {
-      case 'timer':
+    this.activeQuickActionIndex.set(null);
+    if (action.id === 'dashboard') {
+      await this.openDashboardFromWheel();
+      return;
+    }
+    this.selectedAction.set(action);
+    setTimeout(() => {
+      this.quickActionWheelRef?.nativeElement
+        .querySelector<HTMLButtonElement>('.quick-wheel-sub-action')
+        ?.focus();
+    });
+  }
+
+  async runQuickWheelSubAction(index: number): Promise<void> {
+    const action = this.selectedAction();
+    const subAction = action?.subActions[index];
+    if (!action || !subAction) return;
+
+    this.sound.playWheelConfirm();
+    switch (subAction.id) {
+      case 'timer-25':
+      case 'timer-5':
         this.openQuickTimerOptions();
+        this.selectQuickTimer(subAction.id === 'timer-25' ? 25 : 5);
+        this.selectedAction.set(null);
         break;
-      case 'tasks':
+      case 'timer-custom':
+        this.openQuickTimerOptions();
+        this.beginCustomQuickTimer();
+        this.selectedAction.set(null);
+        break;
+      case 'task-add':
         await this.beginQuickTask();
+        if (this.quickTaskMode()) {
+          this.openQuickAddTask();
+          this.selectedAction.set(null);
+        }
         break;
-      case 'read-out':
-        this.openQuickReadOutMenu();
+      case 'task-complete':
+        await this.beginQuickTask();
+        if (this.quickTaskMode()) {
+          this.quickTaskAddMode.set(false);
+          this.quickTaskCompleteMode.set(true);
+          this.selectedAction.set(null);
+        }
         break;
-      case 'dashboard':
-        await this.openDashboardFromWheel();
+      case 'read-tasks':
+        this.selectedAction.set(null);
+        await this.readOutTasks();
         break;
-      case 'reminder':
+      case 'read-timers':
+        this.selectedAction.set(null);
+        await this.readOutTimers();
+        break;
+      case 'read-reminders':
+        this.selectedAction.set(null);
+        await this.readOutReminders();
+        break;
+      case 'reminder-create':
         this.openQuickReminderForm();
+        this.selectedAction.set(null);
         break;
-      case 'motivation':
-        this.openQuickMotivationMenu();
+      case 'motivation-quote':
+        this.selectedAction.set(null);
+        await this.selectMotivationalQuote();
+        break;
+      case 'motivation-story':
+        this.selectedAction.set(null);
+        await this.selectInterestingStory();
         break;
     }
+  }
+
+  goBackToWheel(): void {
+    this.sound.playWheelClose();
+    this.selectedAction.set(null);
+    this.activeQuickActionIndex.set(null);
+    this.quickTimerMode.set(false);
+    this.quickReminderMode.set(false);
+    this.quickReadOutMode.set(false);
+    this.quickMotivationMode.set(false);
+    this.quickTimerLabelMode.set(false);
+    this.quickCustomTimerMode.set(false);
+    this.quickTaskMode.set(false);
+    this.quickTaskAddMode.set(false);
+    this.quickTaskCompleteMode.set(false);
+    this.quickTaskError.set('');
+    this.quickTimerError.set('');
+    this.quickReminderError.set('');
+    this.quickActionError.set('');
+    setTimeout(() => {
+      this.quickActionWheelRef?.nativeElement
+        .querySelector<SVGPathElement>('.quick-wheel-slice')
+        ?.focus();
+    });
   }
 
   private quickWheelPoint(
@@ -1551,7 +1706,19 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     }
 
     if (event.key === 'Escape' && this.quickActionsVisible()) {
-      this.closeQuickActions();
+      event.preventDefault();
+      if (
+        this.selectedAction() !== null ||
+        this.quickTimerMode() ||
+        this.quickReminderMode() ||
+        this.quickReadOutMode() ||
+        this.quickMotivationMode() ||
+        this.quickTaskMode()
+      ) {
+        this.goBackToWheel();
+      } else {
+        this.closeQuickActions();
+      }
     }
   };
 

@@ -153,11 +153,24 @@ describe('Pet', () => {
     expect(quickActionWheel.querySelectorAll('.quick-wheel-slice')).toHaveLength(6);
     expect(playWheelOpen).toHaveBeenCalledOnce();
 
+    await component.activateQuickAction(0);
+    fixture.detectChanges();
+    expect(quickActionWheel.classList.contains('is-focused')).toBe(true);
+    expect(quickActionWheel.querySelector('.quick-wheel')?.classList.contains('hide-slices'))
+      .toBe(true);
+    expect(quickActionWheel.querySelector('.quick-wheel-connectors path')).toBeTruthy();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+
+    expect(component.quickActionsVisible()).toBe(true);
+    expect(component.selectedAction()).toBeNull();
+
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     fixture.detectChanges();
 
     expect(component.quickActionsVisible()).toBe(false);
-    expect(playWheelClose).toHaveBeenCalledOnce();
+    expect(playWheelClose).toHaveBeenCalledTimes(2);
   });
 
   it('updates the wheel hub on slice changes and confirms selected actions', async () => {
@@ -195,9 +208,17 @@ describe('Pet', () => {
       .toContain('Quick actions');
 
     await component.activateQuickAction(0);
+    fixture.detectChanges();
 
     expect(playWheelConfirm).toHaveBeenCalledOnce();
+    expect(component.selectedAction()?.id).toBe('timer');
+    expect(fixture.nativeElement.querySelectorAll('.quick-wheel-sub-action')).toHaveLength(3);
+
+    await component.runQuickWheelSubAction(0);
+
+    expect(playWheelConfirm).toHaveBeenCalledTimes(2);
     expect(component.quickTimerMode()).toBe(true);
+    expect(component.quickTimerLabelMode()).toBe(true);
   });
 
   it('shows separate add and complete task screens with back navigation', async () => {
@@ -356,16 +377,37 @@ describe('Pet', () => {
     expect(petState.getState()).toBe('celebrating');
   });
 
-  it('opens the Motivation menu with quote and story choices', async () => {
+  it('shows quote and story choices in the focused Motivation state', async () => {
     component.quickActionsVisible.set(true);
     fixture.detectChanges();
 
     await component.activateQuickAction(5);
     fixture.detectChanges();
 
-    expect(component.quickMotivationMode()).toBe(true);
-    expect(fixture.nativeElement.querySelector('.motivation-quote-choice')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.motivation-story-choice')).toBeTruthy();
+    expect(component.selectedAction()?.id).toBe('motivation');
+    expect(fixture.nativeElement.querySelector('.quick-wheel-sub-controls').textContent)
+      .toContain('Quote');
+    expect(fixture.nativeElement.querySelector('.quick-wheel-sub-controls').textContent)
+      .toContain('Story');
+  });
+
+  it('uses opaque wheel styling for the focused task choices', async () => {
+    component.quickActionsVisible.set(true);
+    fixture.detectChanges();
+
+    await component.activateQuickAction(1);
+    fixture.detectChanges();
+
+    const choices = Array.from(
+      fixture.nativeElement.querySelectorAll('.quick-wheel-sub-action')
+    ) as HTMLButtonElement[];
+    const focusedWheel = fixture.nativeElement.querySelector('.quick-action-wheel') as HTMLElement;
+    expect(choices.map(choice => choice.textContent?.trim())).toEqual([
+      'Add Task',
+      'Complete Task'
+    ]);
+    expect(getComputedStyle(choices[0]).backgroundColor).toBe('rgb(18, 22, 30)');
+    expect(getComputedStyle(focusedWheel).backgroundColor).toBe('rgb(18, 22, 30)');
   });
 
   it('lets the dialogue expand and minimize without moving', () => {
