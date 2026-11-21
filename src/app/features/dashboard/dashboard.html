@@ -13,6 +13,8 @@
     <button [class.active]="activeTab() === 'reminders'" (click)="selectTab('reminders')">Reminders</button>
     <button [class.active]="activeTab() === 'calendar'" (click)="selectTab('calendar')">Calendar</button>
     <button [class.active]="activeTab() === 'health'" (click)="selectTab('health')">Health</button>
+    <button [class.active]="activeTab() === 'notes'" (click)="selectTab('notes')">Notes</button>
+    <button [class.active]="activeTab() === 'stash'" (click)="selectTab('stash')">Stash</button>
     <button [class.active]="activeTab() === 'settings'" (click)="selectTab('settings')">Settings</button>
   </nav>
 
@@ -23,6 +25,207 @@
       @case ('reminders') { <app-reminders /> }
       @case ('calendar') { <app-calendar-view /> }
       @case ('health') { <app-health-settings /> }
+      @case ('notes') {
+        <section class="dashboard-tools-panel" aria-labelledby="dashboard-notes-title">
+          <header class="dashboard-tool-heading">
+            <div>
+              <p class="eyebrow">Saved locally as you type</p>
+              <h2 id="dashboard-notes-title">Quick Notes</h2>
+            </div>
+            <button type="button" class="dashboard-primary-button" (click)="createNote()">
+              + New note
+            </button>
+          </header>
+
+          <div class="note-export-location">
+            <div>
+              <strong>Quick export folder</strong>
+              @if (desktopAvailable) {
+                <code>{{ notesService.exportDirectory() || 'Loading folder...' }}</code>
+              } @else {
+                <span>Browser downloads folder (managed by your browser)</span>
+              }
+            </div>
+            @if (desktopAvailable) {
+              <div class="note-location-actions">
+                <button type="button" (click)="changeNoteExportDirectory()">Change folder</button>
+                <button
+                  type="button"
+                  [disabled]="notesService.exportDirectory() === notesService.defaultExportDirectory()"
+                  (click)="resetNoteExportDirectory()"
+                >Reset</button>
+              </div>
+            }
+          </div>
+          @if (notesService.exportDirectoryError()) {
+            <p class="dashboard-message error" role="alert">
+              {{ notesService.exportDirectoryError() }}
+            </p>
+          }
+
+          <section class="dashboard-exported-files" aria-labelledby="dashboard-exported-files-title">
+            <header>
+              <h3 id="dashboard-exported-files-title">Files in export folder</h3>
+              <button type="button" (click)="refreshNoteExportFiles()">Refresh</button>
+            </header>
+            @if (notesService.exportFilesError()) {
+              <p class="dashboard-message error" role="alert">
+                {{ notesService.exportFilesError() }}
+              </p>
+            } @else if (notesService.exportFilesLoading()) {
+              <p class="dashboard-empty">Loading files...</p>
+            } @else if (notesService.exportFiles().length === 0) {
+              <p class="dashboard-empty">No .txt or .md files in this folder yet.</p>
+            } @else {
+              <div class="dashboard-exported-file-list" aria-live="polite">
+                @for (file of notesService.exportFiles(); track file.name) {
+                  <article class="dashboard-exported-file">
+                    <div>
+                      <strong>{{ file.name }}</strong>
+                      <small>{{ formatExportFileInfo(file) }}</small>
+                    </div>
+                    <button type="button" (click)="openNoteExportFile(file.name)">Open</button>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+
+          <div class="dashboard-notes-layout">
+            <nav class="dashboard-note-list" aria-label="Saved notes">
+              @for (note of notesService.notes(); track note.id) {
+                <button
+                  type="button"
+                  class="dashboard-note-row"
+                  [class.selected]="notesService.activeNoteId() === note.id"
+                  (click)="selectNote(note.id)"
+                >
+                  <strong>{{ notesService.getTitle(note) }}</strong>
+                  <small>{{ formatNoteUpdatedAt(note) }}</small>
+                </button>
+              } @empty {
+                <p class="dashboard-empty">No notes yet. Create one to get started.</p>
+              }
+            </nav>
+
+            @if (notesService.activeNote(); as note) {
+              <article class="dashboard-note-editor">
+                <div class="dashboard-note-editor-heading">
+                  <input
+                    name="dashboardNoteTitle"
+                    type="text"
+                    maxlength="80"
+                    placeholder="Title (optional)"
+                    aria-label="Note title"
+                    [ngModel]="note.title"
+                    (ngModelChange)="updateNoteTitle(note.id, $event)"
+                  />
+                  <button
+                    type="button"
+                    class="dashboard-danger-button"
+                    (click)="deleteActiveNote()"
+                  >Delete</button>
+                </div>
+                <textarea
+                  name="dashboardNoteContent"
+                  aria-label="Note content"
+                  placeholder="Write a quick note..."
+                  [ngModel]="note.content"
+                  (ngModelChange)="updateNoteContent(note.id, $event)"
+                ></textarea>
+                <div class="dashboard-note-file-actions">
+                  <select
+                    aria-label="Save As format"
+                    [ngModel]="noteFormat()"
+                    (ngModelChange)="setNoteFormat($event)"
+                  >
+                    <option value="txt">.txt</option>
+                    <option value="md">.md</option>
+                  </select>
+                  <button type="button" (click)="exportActiveNote()">Save .txt</button>
+                  <button type="button" (click)="saveActiveNoteAs()">Save As...</button>
+                </div>
+              </article>
+            } @else {
+              <p class="dashboard-empty dashboard-note-empty">
+                Select a note or create one to start writing.
+              </p>
+            }
+          </div>
+          @if (noteError()) {
+            <p class="dashboard-message error" role="alert">{{ noteError() }}</p>
+          } @else if (noteStatus()) {
+            <p class="dashboard-message" role="status">{{ noteStatus() }}</p>
+          } @else if (notesService.storageError()) {
+            <p class="dashboard-message error" role="alert">
+              {{ notesService.storageError() }}
+            </p>
+          }
+        </section>
+      }
+      @case ('stash') {
+        <section class="dashboard-tools-panel" aria-labelledby="dashboard-stash-title">
+          <header class="dashboard-tool-heading">
+            <div>
+              <p class="eyebrow">Six quick-access slots</p>
+              <h2 id="dashboard-stash-title">Quick Stash</h2>
+            </div>
+            <div class="dashboard-stash-actions">
+              <button type="button" class="dashboard-primary-button" (click)="grabClipboard()">
+                + Grab current clipboard
+              </button>
+              <button
+                type="button"
+                [disabled]="clipboardStash.slots().length === 0"
+                (click)="clearClipboardStash()"
+              >Clear all</button>
+            </div>
+          </header>
+          @if (stashError()) {
+            <p class="dashboard-message error" role="alert">{{ stashError() }}</p>
+          } @else if (stashStatus()) {
+            <p class="dashboard-message" role="status">{{ stashStatus() }}</p>
+          } @else if (clipboardStash.loadError()) {
+            <p class="dashboard-message error" role="alert">
+              {{ clipboardStash.loadError() }}
+            </p>
+          }
+          @if (clipboardStash.slots().length === 0) {
+            <p class="dashboard-empty stash-empty">
+              Copy something, then choose <strong>+ Grab current clipboard</strong>.
+            </p>
+          } @else {
+            <div class="dashboard-stash-list" aria-label="Saved clipboard items">
+              @for (slot of clipboardStash.slots(); track slot.id) {
+                <article class="dashboard-stash-item">
+                  <button
+                    type="button"
+                    class="dashboard-stash-copy-area"
+                    [title]="slot.text"
+                    (click)="copyClipboardSlot(slot)"
+                  >
+                    <strong>{{ slot.text }}</strong>
+                    <small>{{ formatClipboardSavedAt(slot) }}</small>
+                  </button>
+                  <button type="button" (click)="copyClipboardSlot(slot)">Copy</button>
+                  <button
+                    type="button"
+                    [attr.aria-label]="slot.pinned ? 'Unpin item' : 'Pin item'"
+                    [attr.aria-pressed]="slot.pinned"
+                    (click)="toggleClipboardPin(slot.id)"
+                  >{{ slot.pinned ? '★' : '☆' }}</button>
+                  <button
+                    type="button"
+                    class="dashboard-danger-button"
+                    aria-label="Remove item"
+                    (click)="removeClipboardSlot(slot.id)"
+                  >×</button>
+                </article>
+              }
+            </div>
+          }
+        </section>
+      }
       @case ('settings') { <app-settings /> }
     }
   </section>

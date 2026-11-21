@@ -11,7 +11,11 @@ export type SoundEvent =
   | 'wheelHover'
   | 'wheelOpen'
   | 'wheelConfirm'
-  | 'wheelClose';
+  | 'wheelClose'
+  | 'clipboardGrab'
+  | 'clipboardCopy'
+  | 'noteCreate'
+  | 'noteSaved';
 
 const SOUND_FILES: Record<SoundEvent, string> = {
   click: 'assets/sounds/click.ogg',
@@ -23,7 +27,11 @@ const SOUND_FILES: Record<SoundEvent, string> = {
   wheelHover: 'assets/sounds/pop.ogg',
   wheelOpen: 'assets/sounds/pop.ogg',
   wheelConfirm: 'assets/sounds/confirm.ogg',
-  wheelClose: 'assets/sounds/click.ogg'
+  wheelClose: 'assets/sounds/click.ogg',
+  clipboardGrab: 'assets/sounds/pop.ogg',
+  clipboardCopy: 'assets/sounds/confirm.ogg',
+  noteCreate: 'assets/sounds/pop.ogg',
+  noteSaved: 'assets/sounds/confirm.ogg'
 };
 
 const WHEEL_HOVER_COOLDOWN_MS = 70;

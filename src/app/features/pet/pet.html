@@ -66,6 +66,8 @@
       class="quick-action-wheel"
       [class.quick-task-open]="quickTaskMode()"
       [class.is-focused]="selectedAction() !== null"
+      [class.quick-stash-open]="quickStashMode()"
+      [class.quick-notes-open]="quickNotesMode()"
       role="dialog"
       aria-label="Milly quick actions"
       [style.width.px]="quickActionDiameter"
@@ -109,7 +111,158 @@
         }
         <circle class="quick-wheel-hub" cx="110" cy="110" r="40" />
       </svg>
-      @if (selectedAction(); as action) {
+      @if (quickStashMode()) {
+        <section class="quick-stash-panel" aria-label="Quick Stash">
+          <header class="quick-stash-header">
+            <div class="quick-stash-heading">
+              <button
+                type="button"
+                class="quick-stash-back"
+                aria-label="Back to quick actions"
+                (click)="goBackToWheel()"
+              >‹</button>
+              <strong>Quick Stash</strong>
+            </div>
+            <div class="quick-stash-header-actions">
+              <button type="button" class="quick-stash-grab" (click)="grabClipboard()">
+                + Grab Current
+              </button>
+              @if (clipboardStash.slots().length > 0) {
+                <button type="button" class="quick-stash-clear" (click)="clearClipboardStash()">
+                  Clear all
+                </button>
+              }
+            </div>
+          </header>
+          @if (quickStashError()) {
+            <p class="quick-stash-message error" role="alert">{{ quickStashError() }}</p>
+          } @else if (quickStashStatus()) {
+            <p class="quick-stash-message" role="status">{{ quickStashStatus() }}</p>
+          }
+          @if (clipboardStash.slots().length === 0) {
+            <p class="quick-stash-empty">
+              Copy something, then choose <strong>+ Grab Current</strong>.
+            </p>
+          } @else {
+            <div class="quick-stash-list" aria-label="Saved clipboard items">
+              @for (slot of clipboardStash.slots(); track slot.id) {
+                <div class="quick-stash-item">
+                  <button
+                    type="button"
+                    class="quick-stash-copy-area"
+                    [title]="slot.text"
+                    [attr.aria-label]="'Copy clipboard item: ' + slot.text"
+                    (click)="copyClipboardSlot(slot)"
+                  >
+                    <span class="quick-stash-preview">{{ slot.text }}</span>
+                    <span class="quick-stash-meta">
+                      {{ formatClipboardSavedAt(slot) }}
+                      @if (quickStashCopiedId() === slot.id) {
+                        <strong> · Copied</strong>
+                      }
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    class="quick-stash-copy"
+                    [attr.aria-label]="'Copy clipboard item: ' + slot.text"
+                    (click)="copyClipboardSlot(slot)"
+                  >Copy</button>
+                  <button
+                    type="button"
+                    class="quick-stash-icon"
+                    [attr.aria-label]="slot.pinned ? 'Unpin clipboard item' : 'Pin clipboard item'"
+                    [attr.aria-pressed]="slot.pinned"
+                    (click)="toggleClipboardSlotPin(slot.id)"
+                  >{{ slot.pinned ? '★' : '☆' }}</button>
+                  <button
+                    type="button"
+                    class="quick-stash-icon"
+                    [attr.aria-label]="'Remove clipboard item'"
+                    (click)="removeClipboardSlot(slot.id)"
+                  >×</button>
+                </div>
+              }
+            </div>
+          }
+        </section>
+      } @else if (quickNotesMode()) {
+        <section class="quick-notes-panel" aria-label="Quick Notes">
+          <header class="quick-notes-header">
+            <strong>Quick Notes</strong>
+            <button type="button" class="quick-note-new" (click)="createQuickNote()">+ New</button>
+          </header>
+          @if (notesService.notes().length > 0) {
+            <div class="quick-notes-list" aria-label="Your notes">
+              @for (note of notesService.notes(); track note.id) {
+                <button
+                  type="button"
+                  class="quick-note-row"
+                  [class.selected]="notesService.activeNoteId() === note.id"
+                  [title]="notesService.getTitle(note)"
+                  (click)="selectQuickNote(note.id)"
+                >
+                  <span>{{ notesService.getTitle(note) }}</span>
+                  <small>{{ formatNoteUpdatedAt(note) }}</small>
+                </button>
+              }
+            </div>
+          }
+          @if (notesService.activeNote(); as note) {
+            <div class="quick-note-editor-area">
+              <div class="quick-note-title-row">
+                <input
+                  class="quick-note-title"
+                  name="quickNoteTitle"
+                  type="text"
+                  maxlength="80"
+                  placeholder="Title (optional)"
+                  aria-label="Note title"
+                  [ngModel]="note.title"
+                  (ngModelChange)="updateQuickNoteTitle(note.id, $event)"
+                />
+                <button
+                  type="button"
+                  class="quick-note-delete"
+                  aria-label="Delete note"
+                  title="Delete note"
+                  (click)="deleteActiveQuickNote()"
+                >×</button>
+              </div>
+              <textarea
+                class="quick-note-editor"
+                name="quickNoteContent"
+                aria-label="Note content"
+                placeholder="Write a quick note..."
+                [ngModel]="note.content"
+                (ngModelChange)="updateQuickNoteContent(note.id, $event)"
+              ></textarea>
+              <div class="quick-note-export">
+                <select
+                  aria-label="Save As file format"
+                  [ngModel]="quickNoteFormat()"
+                  (ngModelChange)="setQuickNoteFormat($event)"
+                >
+                  <option value="txt">.txt</option>
+                  <option value="md">.md</option>
+                </select>
+                <button type="button" (click)="exportActiveQuickNote()">Save .txt</button>
+                <button type="button" (click)="saveActiveQuickNoteAs()">Save As...</button>
+              </div>
+            </div>
+          } @else {
+            <div class="quick-notes-empty">
+              <span>Your notes will stay here between sessions.</span>
+              <button type="button" (click)="createQuickNote()">+ New note</button>
+            </div>
+          }
+          @if (quickNotesError()) {
+            <p class="quick-notes-message error" role="alert">{{ quickNotesError() }}</p>
+          } @else if (quickNotesStatus()) {
+            <p class="quick-notes-message" role="status">{{ quickNotesStatus() }}</p>
+          }
+        </section>
+      } @else if (selectedAction(); as action) {
         <div class="quick-wheel-connectors" aria-hidden="true">
           <svg viewBox="0 0 220 220" focusable="false">
             <path d="M110 0v74m0 72v74M0 110h74m72 0h74" />

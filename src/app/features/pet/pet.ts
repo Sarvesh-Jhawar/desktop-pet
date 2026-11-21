@@ -40,6 +40,10 @@ import type { PetDesignId } from '../../core/pet-state.service';
 import { PetRulesService } from '../../core/pet-rules.service';
 import { DialogueService } from '../../core/dialogue.service';
 import { SoundService } from '../../core/sound.service';
+import { ClipboardStashService } from '../../core/clipboard-stash.service';
+import type { ClipboardStashSlot } from '../../core/clipboard-stash.service';
+import { NotesService } from '../../core/notes.service';
+import type { QuickNote } from '../../core/notes.service';
 import { SpeechService } from '../../core/speech.service';
 import { MotivationalQuoteService } from '../../core/motivational-quote.service';
 import { MotivationalStoryService } from '../../core/motivational-story.service';
@@ -74,7 +78,9 @@ type QuickWheelActionId =
   | 'read-out'
   | 'dashboard'
   | 'reminder'
-  | 'motivation';
+  | 'motivation'
+  | 'clipboard-stash'
+  | 'notes';
 
 type QuickWheelSubActionId =
   | 'timer-25'
@@ -171,6 +177,22 @@ const QUICK_WHEEL_ACTIONS: QuickWheelAction[] = [
       { id: 'motivation-quote', label: 'Quote' },
       { id: 'motivation-story', label: 'Story' }
     ]
+  },
+  {
+    id: 'clipboard-stash',
+    label: 'Quick Stash',
+    shortLabel: 'Stash',
+    hint: 'Save and copy snippets',
+    icon: '▤',
+    subActions: []
+  },
+  {
+    id: 'notes',
+    label: 'Quick Notes',
+    shortLabel: 'Notes',
+    hint: 'Write and export a note',
+    icon: '✎',
+    subActions: []
   }
 ];
 
@@ -181,7 +203,7 @@ const SPEECH_BUBBLE_SYNC_DELAY_MS = 180;
   standalone: true,
   imports: [FormsModule],
   templateUrl: './pet.html',
-  styleUrls: ['./pet.css', './health-banner.css']
+  styleUrls: ['./pet.css', './pet-notes.css', './health-banner.css']
 })
 export class Pet implements OnInit, OnDestroy {
 
@@ -198,6 +220,10 @@ export class Pet implements OnInit, OnDestroy {
   private readonly dialogue = inject(DialogueService);
 
   private readonly sound = inject(SoundService);
+
+  readonly clipboardStash = inject(ClipboardStashService);
+
+  readonly notesService = inject(NotesService);
 
   private readonly speech = inject(SpeechService);
 
@@ -235,6 +261,8 @@ export class Pet implements OnInit, OnDestroy {
 
   private lastClickSpeechAt = 0;
 
+  private quickStashCopiedTimeout?: ReturnType<typeof setTimeout>;
+
   private startupGreeting?: Promise<void>;
 
   private petFocused = false;
@@ -254,6 +282,22 @@ export class Pet implements OnInit, OnDestroy {
 
   quickActionsVisible = signal(false);
 
+  quickStashMode = signal(false);
+
+  quickNotesMode = signal(false);
+
+  quickNoteFormat = signal<'txt' | 'md'>('txt');
+
+  quickNotesError = signal('');
+
+  quickNotesStatus = signal('');
+
+  quickStashCopiedId = signal<string | null>(null);
+
+  quickStashError = signal('');
+
+  quickStashStatus = signal('');
+
   readonly quickWheelActions = QUICK_WHEEL_ACTIONS;
 
   activeQuickActionIndex = signal<number | null>(null);
@@ -270,7 +314,9 @@ export class Pet implements OnInit, OnDestroy {
       !this.quickReminderMode() &&
       !this.quickReadOutMode() &&
       !this.quickMotivationMode() &&
-      !this.quickTaskMode();
+      !this.quickTaskMode() &&
+      !this.quickStashMode() &&
+      !this.quickNotesMode();
   }
 
   quickTimerMode = signal(false);
@@ -1468,6 +1514,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.quickTaskMode.set(false);
     this.quickTaskAddMode.set(false);
     this.quickTaskCompleteMode.set(false);
+    this.quickStashMode.set(false);
+    this.quickNotesMode.set(false);
     this.quickTimerMode.set(false);
     this.quickReminderMode.set(false);
     this.quickReadOutMode.set(false);
@@ -1495,6 +1543,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     const wasVisible = this.quickActionsVisible();
     const closeOverlay = this.quickActionsOverlay && this.quickActionsVisible();
     this.quickActionsVisible.set(false);
+    this.quickStashMode.set(false);
+    this.quickNotesMode.set(false);
     this.selectedAction.set(null);
     this.activeQuickActionIndex.set(null);
     if (wasVisible) this.sound.playWheelClose();
@@ -1507,6 +1557,11 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.quickTaskMode.set(false);
     this.quickTaskAddMode.set(false);
     this.quickTaskCompleteMode.set(false);
+    this.quickStashError.set('');
+    this.quickStashStatus.set('');
+    this.quickStashCopiedId.set(null);
+    this.quickNotesError.set('');
+    this.quickNotesStatus.set('');
     this.quickTaskTitle = '';
     this.quickTaskError.set('');
     this.quickTimerError.set('');
@@ -1524,8 +1579,9 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     const center = 110;
     const outerRadius = 106;
     const innerRadius = 42;
-    const startAngle = -90 + index * 60 + 1.5;
-    const endAngle = -90 + (index + 1) * 60 - 1.5;
+    const sliceAngle = 360 / this.quickWheelActions.length;
+    const startAngle = -90 + index * sliceAngle + 1.5;
+    const endAngle = -90 + (index + 1) * sliceAngle - 1.5;
     const outerStart = this.quickWheelPoint(center, outerRadius, startAngle);
     const outerEnd = this.quickWheelPoint(center, outerRadius, endAngle);
     const innerEnd = this.quickWheelPoint(center, innerRadius, endAngle);
@@ -1541,7 +1597,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
   }
 
   quickWheelLabelPoint(index: number, radius: number): { x: number; y: number } {
-    return this.quickWheelPoint(110, radius, -60 + index * 60);
+    const sliceAngle = 360 / this.quickWheelActions.length;
+    return this.quickWheelPoint(110, radius, -90 + (index + 0.5) * sliceAngle);
   }
 
   setActiveQuickAction(index: number): void {
@@ -1575,6 +1632,31 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.activeQuickActionIndex.set(null);
     if (action.id === 'dashboard') {
       await this.openDashboardFromWheel();
+      return;
+    }
+    if (action.id === 'clipboard-stash') {
+      this.quickStashMode.set(true);
+      this.quickStashError.set(this.clipboardStash.loadError());
+      this.quickStashStatus.set('');
+      this.quickStashCopiedId.set(null);
+      setTimeout(() => {
+        this.quickActionWheelRef?.nativeElement
+          .querySelector<HTMLButtonElement>('.quick-stash-grab')
+          ?.focus();
+      });
+      return;
+    }
+    if (action.id === 'notes') {
+      this.quickNotesMode.set(true);
+      this.quickNotesError.set(this.notesService.storageError());
+      this.quickNotesStatus.set('');
+      setTimeout(() => {
+        this.quickActionWheelRef?.nativeElement
+          .querySelector<HTMLButtonElement>(
+            this.notesService.activeNote() ? '.quick-note-editor' : '.quick-note-new'
+          )
+          ?.focus();
+      });
       return;
     }
     this.selectedAction.set(action);
@@ -1658,6 +1740,8 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.quickTaskMode.set(false);
     this.quickTaskAddMode.set(false);
     this.quickTaskCompleteMode.set(false);
+    this.quickStashMode.set(false);
+    this.quickNotesMode.set(false);
     this.quickTaskError.set('');
     this.quickTimerError.set('');
     this.quickReminderError.set('');
@@ -1667,6 +1751,185 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         .querySelector<SVGPathElement>('.quick-wheel-slice')
         ?.focus();
     });
+  }
+
+  async grabClipboard(): Promise<void> {
+    this.quickStashError.set('');
+    this.quickStashStatus.set('');
+    try {
+      await this.clipboardStash.grabCurrentClipboard();
+      this.sound.play('clipboardGrab');
+      this.quickStashStatus.set('Saved to stash.');
+    } catch (error) {
+      console.error('Could not grab the current clipboard:', error);
+      this.quickStashError.set(
+        error instanceof Error ? error.message : 'Could not read the clipboard.'
+      );
+    }
+  }
+
+  async copyClipboardSlot(slot: ClipboardStashSlot): Promise<void> {
+    this.quickStashError.set('');
+    this.quickStashStatus.set('');
+    try {
+      await this.clipboardStash.copyToClipboard(slot.id);
+      this.sound.play('clipboardCopy');
+      this.quickStashCopiedId.set(slot.id);
+      if (this.quickStashCopiedTimeout) clearTimeout(this.quickStashCopiedTimeout);
+      this.quickStashCopiedTimeout = setTimeout(() => {
+        this.quickStashCopiedId.set(null);
+        this.quickStashCopiedTimeout = undefined;
+      }, 1400);
+    } catch (error) {
+      console.error('Could not copy the clipboard stash item:', error);
+      this.quickStashError.set(
+        error instanceof Error ? error.message : 'Could not copy to the clipboard.'
+      );
+    }
+  }
+
+  toggleClipboardSlotPin(id: string): void {
+    this.quickStashError.set('');
+    this.quickStashStatus.set('');
+    try {
+      this.clipboardStash.togglePin(id);
+    } catch (error) {
+      console.error('Could not change the clipboard stash pin:', error);
+      this.quickStashError.set(
+        error instanceof Error ? error.message : 'Could not update the clipboard item.'
+      );
+    }
+  }
+
+  removeClipboardSlot(id: string): void {
+    this.quickStashError.set('');
+    this.quickStashStatus.set('');
+    try {
+      this.clipboardStash.removeSlot(id);
+      if (this.quickStashCopiedId() === id) this.quickStashCopiedId.set(null);
+    } catch (error) {
+      console.error('Could not remove the clipboard stash item:', error);
+      this.quickStashError.set(
+        error instanceof Error ? error.message : 'Could not remove the clipboard item.'
+      );
+    }
+  }
+
+  clearClipboardStash(): void {
+    this.quickStashError.set('');
+    this.quickStashStatus.set('');
+    try {
+      this.clipboardStash.clearAll();
+      this.quickStashCopiedId.set(null);
+      this.quickStashStatus.set('Stash cleared.');
+    } catch (error) {
+      console.error('Could not clear the clipboard stash:', error);
+      this.quickStashError.set(
+        error instanceof Error ? error.message : 'Could not clear the clipboard stash.'
+      );
+    }
+  }
+
+  createQuickNote(): void {
+    this.notesService.createNote();
+    this.quickNotesError.set(this.notesService.storageError());
+    this.quickNotesStatus.set('');
+    this.sound.play('noteCreate');
+    setTimeout(() => {
+      this.quickActionWheelRef?.nativeElement
+        .querySelector<HTMLTextAreaElement>('.quick-note-editor')
+        ?.focus();
+    });
+  }
+
+  selectQuickNote(id: string): void {
+    this.notesService.selectNote(id);
+    this.quickNotesError.set(this.notesService.storageError());
+    this.quickNotesStatus.set('');
+  }
+
+  updateQuickNoteTitle(id: string, title: string): void {
+    this.notesService.updateTitle(id, title);
+    this.updateQuickNotePersistenceStatus();
+  }
+
+  updateQuickNoteContent(id: string, content: string): void {
+    this.notesService.updateContent(id, content);
+    this.updateQuickNotePersistenceStatus();
+  }
+
+  deleteActiveQuickNote(): void {
+    const note = this.notesService.activeNote();
+    if (!note) return;
+    this.notesService.deleteNote(note.id);
+    this.quickNotesError.set(this.notesService.storageError());
+    this.quickNotesStatus.set('Note deleted.');
+  }
+
+  setQuickNoteFormat(format: string): void {
+    if (format === 'txt' || format === 'md') this.quickNoteFormat.set(format);
+  }
+
+  formatNoteUpdatedAt(note: QuickNote): string {
+    const updatedAt = Date.parse(note.updatedAt);
+    if (!Number.isFinite(updatedAt)) return '';
+    const ageMinutes = Math.floor(Math.max(0, Date.now() - updatedAt) / 60_000);
+    if (ageMinutes < 1) return 'Just now';
+    if (ageMinutes < 60) return `${ageMinutes}m ago`;
+    const ageHours = Math.floor(ageMinutes / 60);
+    if (ageHours < 24) return `${ageHours}h ago`;
+    return `${Math.floor(ageHours / 24)}d ago`;
+  }
+
+  async exportActiveQuickNote(): Promise<void> {
+    const note = this.notesService.activeNote();
+    if (!note) return;
+    this.quickNotesError.set('');
+    this.quickNotesStatus.set('');
+    try {
+      const filePath = await this.notesService.exportTextFile(note);
+      this.sound.play('noteSaved');
+      this.quickNotesStatus.set(`Saved ${this.getNoteFileLabel(filePath)}.`);
+    } catch (error) {
+      console.error('Could not export the quick note:', error);
+      this.quickNotesError.set('Could not save the note file. Please try again.');
+    }
+  }
+
+  async saveActiveQuickNoteAs(): Promise<void> {
+    const note = this.notesService.activeNote();
+    if (!note) return;
+    this.quickNotesError.set('');
+    this.quickNotesStatus.set('');
+    try {
+      const filePath = await this.notesService.saveAsFile(note, this.quickNoteFormat());
+      if (!filePath) return;
+      this.sound.play('noteSaved');
+      this.quickNotesStatus.set(`Saved ${this.getNoteFileLabel(filePath)}.`);
+    } catch (error) {
+      console.error('Could not save the quick note:', error);
+      this.quickNotesError.set('Could not save the note file. Please try again.');
+    }
+  }
+
+  formatClipboardSavedAt(slot: ClipboardStashSlot): string {
+    if (slot.pinned) return 'Pinned';
+    const ageMinutes = Math.floor(Math.max(0, Date.now() - slot.savedAt) / 60_000);
+    if (ageMinutes < 1) return 'Just now';
+    if (ageMinutes < 60) return `${ageMinutes}m ago`;
+    const ageHours = Math.floor(ageMinutes / 60);
+    if (ageHours < 24) return `${ageHours}h ago`;
+    return `${Math.floor(ageHours / 24)}d ago`;
+  }
+
+  private updateQuickNotePersistenceStatus(): void {
+    const error = this.notesService.storageError();
+    this.quickNotesError.set(error);
+    this.quickNotesStatus.set(error ? '' : 'Saved');
+  }
+
+  private getNoteFileLabel(filePath: string): string {
+    return filePath.split(/[\\/]/).pop() || filePath;
   }
 
   private quickWheelPoint(
@@ -1713,7 +1976,9 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         this.quickReminderMode() ||
         this.quickReadOutMode() ||
         this.quickMotivationMode() ||
-        this.quickTaskMode()
+        this.quickTaskMode() ||
+        this.quickStashMode() ||
+        this.quickNotesMode()
       ) {
         this.goBackToWheel();
       } else {
@@ -2746,6 +3011,11 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
    */
 
   ngOnDestroy(): void {
+    if (this.quickStashCopiedTimeout) {
+      clearTimeout(this.quickStashCopiedTimeout);
+      this.quickStashCopiedTimeout = undefined;
+    }
+
     if (this.backgroundRemovalFrame !== undefined) {
       cancelAnimationFrame(this.backgroundRemovalFrame);
       this.backgroundRemovalFrame = undefined;

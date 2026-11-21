@@ -82,3 +82,332 @@ h1 {
   .dashboard-tabs { overflow-x: auto; }
   .dashboard-tabs button { flex: 0 0 auto; padding-inline: 10px; }
 }
+
+.dashboard-tools-panel {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.dashboard-tool-heading,
+.dashboard-note-editor-heading,
+.note-export-location,
+.note-location-actions,
+.dashboard-stash-actions,
+.dashboard-note-file-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.dashboard-tool-heading {
+  margin-bottom: 20px;
+}
+
+.dashboard-tool-heading h2 {
+  margin: 0;
+}
+
+.dashboard-tool-heading .eyebrow {
+  margin-bottom: 5px;
+}
+
+.dashboard-primary-button,
+.note-location-actions button,
+.dashboard-stash-actions button,
+.dashboard-note-file-actions button,
+.dashboard-note-editor-heading button,
+.dashboard-stash-item > button:not(.dashboard-stash-copy-area) {
+  background: rgba(139, 92, 246, 0.18);
+  border: 1px solid rgba(139, 92, 246, 0.5);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  padding: 9px 12px;
+}
+
+.dashboard-primary-button {
+  background: var(--accent-gradient);
+  border: 0;
+  color: #fff;
+  font-weight: 700;
+}
+
+.dashboard-tools-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.note-export-location {
+  align-items: start;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+  padding: 12px;
+}
+
+.note-export-location > div:first-child {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.note-export-location code,
+.note-export-location span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.note-location-actions {
+  flex: 0 0 auto;
+}
+
+.dashboard-exported-files {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+  padding: 14px;
+}
+
+.dashboard-exported-files > header,
+.dashboard-exported-file {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.dashboard-exported-files > header {
+  margin-bottom: 10px;
+}
+
+.dashboard-exported-files h3 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.dashboard-exported-files button {
+  background: rgba(139, 92, 246, 0.18);
+  border: 1px solid rgba(139, 92, 246, 0.5);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  padding: 7px 10px;
+}
+
+.dashboard-exported-file-list {
+  display: grid;
+  gap: 6px;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.dashboard-exported-file {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.dashboard-exported-file > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dashboard-exported-file strong {
+  overflow-wrap: anywhere;
+}
+
+.dashboard-exported-file small {
+  color: var(--text-secondary);
+}
+
+.dashboard-notes-layout {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(190px, 0.32fr) minmax(0, 1fr);
+  min-height: 390px;
+}
+
+.dashboard-note-list {
+  align-content: start;
+  display: grid;
+  gap: 7px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.dashboard-note-row {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  text-align: left;
+}
+
+.dashboard-note-row.selected {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: var(--accent-start);
+}
+
+.dashboard-note-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-note-row small,
+.dashboard-stash-item small {
+  color: var(--text-secondary);
+}
+
+.dashboard-note-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dashboard-note-editor-heading input,
+.dashboard-note-editor textarea,
+.dashboard-note-file-actions select {
+  background: rgba(10, 9, 17, 0.55);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font: inherit;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.dashboard-note-editor-heading input {
+  flex: 1;
+}
+
+.dashboard-note-editor textarea {
+  flex: 1;
+  line-height: 1.5;
+  min-height: 260px;
+  resize: vertical;
+  width: 100%;
+}
+
+.dashboard-note-file-actions {
+  justify-content: flex-start;
+}
+
+.dashboard-note-file-actions select {
+  min-height: 39px;
+}
+
+.dashboard-danger-button {
+  background: rgba(248, 113, 113, 0.12) !important;
+  border-color: rgba(248, 113, 113, 0.35) !important;
+}
+
+.dashboard-empty {
+  color: var(--text-secondary);
+  margin: 0;
+  padding: 14px;
+}
+
+.dashboard-note-empty {
+  align-self: center;
+  justify-self: center;
+}
+
+.dashboard-message {
+  color: var(--success);
+  margin: -8px 0 14px;
+}
+
+.dashboard-message.error {
+  color: var(--danger);
+}
+
+.dashboard-stash-actions {
+  justify-content: flex-end;
+}
+
+.dashboard-stash-list {
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-stash-item {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+}
+
+.dashboard-stash-copy-area {
+  background: transparent;
+  border: 0;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px;
+  text-align: left;
+}
+
+.dashboard-stash-copy-area strong {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.dashboard-stash-item > button:not(.dashboard-stash-copy-area) {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+}
+
+.dashboard-tools-panel button:focus-visible,
+.dashboard-tools-panel input:focus-visible,
+.dashboard-tools-panel textarea:focus-visible,
+.dashboard-tools-panel select:focus-visible {
+  outline: 2px solid var(--accent-end);
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .dashboard-tools-panel { padding: 16px; }
+  .dashboard-notes-layout { grid-template-columns: 1fr; }
+  .dashboard-note-list { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); max-height: 180px; }
+  .note-export-location { display: block; }
+  .note-location-actions { justify-content: flex-start; margin-top: 10px; }
+  .dashboard-tool-heading { align-items: start; }
+}
+
+@media (max-width: 520px) {
+  .dashboard-tool-heading,
+  .dashboard-stash-item { align-items: stretch; }
+  .dashboard-tool-heading { flex-direction: column; }
+  .dashboard-stash-actions { align-items: stretch; flex-direction: column; }
+  .dashboard-note-file-actions { flex-wrap: wrap; }
+  .dashboard-note-file-actions button { flex: 1; }
+  .dashboard-stash-item { flex-wrap: wrap; }
+  .dashboard-stash-copy-area { flex-basis: 100%; }
+}

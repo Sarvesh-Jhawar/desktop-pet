@@ -150,7 +150,7 @@ describe('Pet', () => {
     expect(quickActionWheel).toBeTruthy();
     expect(quickActionWheel.style.left).toBe('40%');
     expect(quickActionWheel.style.top).toBe('30%');
-    expect(quickActionWheel.querySelectorAll('.quick-wheel-slice')).toHaveLength(6);
+    expect(quickActionWheel.querySelectorAll('.quick-wheel-slice')).toHaveLength(8);
     expect(playWheelOpen).toHaveBeenCalledOnce();
 
     await component.activateQuickAction(0);
@@ -408,6 +408,50 @@ describe('Pet', () => {
     ]);
     expect(getComputedStyle(choices[0]).backgroundColor).toBe('rgb(18, 22, 30)');
     expect(getComputedStyle(focusedWheel).backgroundColor).toBe('rgb(18, 22, 30)');
+  });
+
+  it('opens Quick Stash from the new wheel slice and returns with Escape', async () => {
+    component.quickActionsVisible.set(true);
+    fixture.detectChanges();
+
+    await component.activateQuickAction(6);
+    fixture.detectChanges();
+
+    expect(component.quickStashMode()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.quick-stash-panel')).toBeTruthy();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+
+    expect(component.quickStashMode()).toBe(false);
+    expect(component.quickActionsVisible()).toBe(true);
+  });
+
+  it('opens the opaque Quick Notes panel and persists edits', async () => {
+    component.quickActionsVisible.set(true);
+    fixture.detectChanges();
+
+    await component.activateQuickAction(7);
+    fixture.detectChanges();
+    expect(component.quickNotesMode()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.quick-notes-panel')).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('.quick-action-wheel')
+        .classList.contains('quick-notes-open')
+    ).toBe(true);
+
+    component.createQuickNote();
+    fixture.detectChanges();
+    const note = component.notesService.activeNote();
+    expect(note).toBeTruthy();
+    component.updateQuickNoteContent(note!.id, 'Meeting notes\nFollow up tomorrow');
+    fixture.detectChanges();
+
+    expect(component.notesService.getTitle(component.notesService.activeNote()!))
+      .toBe('Meeting notes');
+    expect(localStorage.getItem('milly.quick-notes.v1'))
+      .toContain('Meeting notes\\nFollow up tomorrow');
+    localStorage.removeItem('milly.quick-notes.v1');
   });
 
   it('lets the dialogue expand and minimize without moving', () => {

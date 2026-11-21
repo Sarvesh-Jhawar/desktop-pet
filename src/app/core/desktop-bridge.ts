@@ -4,6 +4,19 @@ export interface DesktopEvent<T> {
   payload: T;
 }
 
+export type NoteFileFormat = 'txt' | 'md';
+
+export interface NoteExportDirectoryInfo {
+  directory: string;
+  defaultDirectory: string;
+}
+
+export interface NoteExportFile {
+  name: string;
+  size: number;
+  modifiedAt: string;
+}
+
 interface ElectronBridge {
   invoke<T>(command: string, args?: Record<string, unknown>): Promise<T>;
   emit<T>(event: string, payload?: T): Promise<void>;
@@ -172,6 +185,49 @@ export function enable(): Promise<void> {
 
 export function disable(): Promise<void> {
   return invoke<void>('autostart:disable');
+}
+
+export function exportNoteTextFile(fileName: string, content: string): Promise<string> {
+  return invoke<string>('notes:quick-export', { fileName, content });
+}
+
+export function saveNoteAsFile(
+  fileName: string,
+  content: string,
+  format: NoteFileFormat
+): Promise<{ canceled: boolean; filePath?: string }> {
+  return invoke<{ canceled: boolean; filePath?: string }>(
+    'notes:save-as',
+    { fileName, content, format }
+  );
+}
+
+export function getNoteExportDirectory(): Promise<NoteExportDirectoryInfo> {
+  return invoke<NoteExportDirectoryInfo>('notes:export-directory:get');
+}
+
+export function chooseNoteExportDirectory(): Promise<{
+  canceled: boolean;
+  directory: string;
+  defaultDirectory: string;
+}> {
+  return invoke<{
+    canceled: boolean;
+    directory: string;
+    defaultDirectory: string;
+  }>('notes:export-directory:choose');
+}
+
+export function resetNoteExportDirectory(): Promise<NoteExportDirectoryInfo> {
+  return invoke<NoteExportDirectoryInfo>('notes:export-directory:reset');
+}
+
+export function listNoteExportFiles(): Promise<NoteExportFile[]> {
+  return invoke<NoteExportFile[]>('notes:files:list');
+}
+
+export function openNoteExportFile(fileName: string): Promise<void> {
+  return invoke<void>('notes:file:open', { fileName });
 }
 
 export function isPermissionGranted(): Promise<boolean> {

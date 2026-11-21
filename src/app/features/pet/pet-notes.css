@@ -1,0 +1,209 @@
+.quick-notes-panel {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow: hidden;
+  padding: 8px;
+  color: #f8fafc;
+  font:
+    11px Arial,
+    sans-serif;
+}
+
+.quick-notes-header {
+  display: flex;
+  min-height: 23px;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 23px;
+}
+
+.quick-notes-header strong {
+  font-size: 12px;
+}
+
+.quick-note-new,
+.quick-note-delete,
+.quick-note-export button,
+.quick-notes-empty button {
+  border: 1px solid rgba(125, 211, 252, 0.4);
+  border-radius: 7px;
+  background: #164e63;
+  color: #bae6fd;
+  cursor: pointer;
+  font:
+    600 10px Arial,
+    sans-serif;
+}
+
+.quick-note-new {
+  min-height: 22px;
+  padding: 3px 7px;
+}
+
+.quick-notes-list {
+  display: flex;
+  min-height: 0;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.quick-note-row {
+  display: flex;
+  min-width: 62px;
+  max-width: 90px;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  background: #1e293b;
+  color: #e2e8f0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.quick-note-row.selected {
+  border-color: rgba(125, 211, 252, 0.7);
+  background: #243b53;
+}
+
+.quick-note-row span {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-note-row small {
+  color: #94a3b8;
+  font-size: 8px;
+}
+
+.quick-note-editor-area {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quick-note-title-row {
+  display: flex;
+  min-height: 23px;
+  gap: 4px;
+}
+
+.quick-note-title,
+.quick-note-editor,
+.quick-note-export select {
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: #111827;
+  color: #f8fafc;
+  font:
+    10px Arial,
+    sans-serif;
+}
+
+.quick-note-title {
+  min-width: 0;
+  flex: 1;
+  padding: 4px 6px;
+}
+
+.quick-note-delete {
+  width: 23px;
+  padding: 0;
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #1e293b;
+  color: #cbd5e1;
+  font-size: 16px;
+}
+
+.quick-note-editor {
+  width: 100%;
+  min-height: 45px;
+  flex: 1;
+  resize: none;
+  padding: 6px;
+  line-height: 1.35;
+}
+
+.quick-note-title::placeholder,
+.quick-note-editor::placeholder {
+  color: #94a3b8;
+}
+
+.quick-note-export {
+  display: flex;
+  min-height: 24px;
+  gap: 4px;
+}
+
+.quick-note-export select {
+  width: 42px;
+  padding: 3px;
+}
+
+.quick-note-export button {
+  min-width: 0;
+  flex: 1;
+  padding: 3px 4px;
+  white-space: nowrap;
+}
+
+.quick-note-new:hover,
+.quick-note-delete:hover,
+.quick-note-export button:hover,
+.quick-notes-empty button:hover {
+  background: #235b7b;
+}
+
+.quick-note-title:focus-visible,
+.quick-note-editor:focus-visible,
+.quick-note-row:focus-visible,
+.quick-note-export select:focus-visible,
+.quick-notes-panel button:focus-visible {
+  outline: 1px solid #7dd3fc;
+  outline-offset: 1px;
+}
+
+.quick-notes-empty {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #cbd5e1;
+  text-align: center;
+}
+
+.quick-notes-empty button {
+  padding: 5px 8px;
+}
+
+.quick-notes-message {
+  overflow: hidden;
+  margin: 0;
+  color: #bae6fd;
+  font-size: 9px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-notes-message.error {
+  color: #fecaca;
+}

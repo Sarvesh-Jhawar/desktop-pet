@@ -1,4 +1,5 @@
-const { app, BrowserWindow, Menu, Notification, Tray, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, screen, shell } = require('electron');
+const { watch: watchFileSystem } = require('node:fs');
 const { spawn } = require('node:child_process');
 const { createInterface } = require('node:readline');
 const fs = require('node:fs/promises');
@@ -22,6 +23,10 @@ let dragState;
 let globalCursorTimer;
 let lastGlobalCursor;
 let eyesFollowCursorEnabled = true;
+let noteExportDirectory;
+let noteExportDirectoryWatcher;
+let noteExportDirectoryWatcherPath;
+let noteExportWatchTimer;
 
 function emitToWindows(event, payload) {
   for (const window of windows) {
@@ -284,6 +289,124 @@ async function ensureDevServer() {
   throw new Error('Angular dev server did not start within 60 seconds.');
 }
 
+function validateNoteFileRequest(fileName, content, format) {
+  if (
+    typeof fileName !== 'string' ||
+    path.basename(fileName) !== fileName ||
+    typeof content !== 'string' ||
+    !['txt', 'md'].includes(format)
+  ) {
+    throw new Error('Invalid note file data.');
+  }
+  const stem = path.parse(fileName).name;
+  if (!stem || /[\u0000-\u001f<>:"/\\|?*]/.test(stem)) {
+    throw new Error('Invalid note file name.');
+  }
+  return `${stem}.${format}`;
+}
+
+async function writeUniqueNoteFile(directory, fileName, content) {
+  const { name, ext } = path.parse(fileName);
+  for (let suffix = 0; suffix < 1000; suffix += 1) {
+    const candidateName = suffix === 0 ? fileName : `${name} (${suffix + 1})${ext}`;
+    const candidatePath = path.join(directory, candidateName);
+    try {
+      await fs.writeFile(candidatePath, content, { encoding: 'utf8', flag: 'wx' });
+      return candidatePath;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+    }
+  }
+  throw new Error('Could not find an unused filename for this note.');
+}
+
+function defaultNoteExportDirectory() {
+  return path.join(app.getPath('documents'), 'Milly Notes');
+}
+
+async function getNoteExportDirectory() {
+  if (!noteExportDirectory) {
+    const settingsFile = path.join(app.getPath('userData'), 'notes-settings.json');
+    try {
+      const settings = JSON.parse(await fs.readFile(settingsFile, 'utf8'));
+      if (
+        typeof settings.exportDirectory !== 'string' ||
+        !path.isAbsolute(settings.exportDirectory)
+      ) {
+        throw new Error('Saved Notes export directory is invalid.');
+      }
+      noteExportDirectory = path.normalize(settings.exportDirectory);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        throw new Error('Could not load the saved Notes export directory.', { cause: error });
+      }
+      noteExportDirectory = defaultNoteExportDirectory();
+    }
+  }
+  return {
+    directory: noteExportDirectory,
+    defaultDirectory: defaultNoteExportDirectory()
+  };
+}
+
+async function saveNoteExportDirectory(directory) {
+  const resolvedDirectory = path.resolve(directory);
+  await fs.mkdir(resolvedDirectory, { recursive: true });
+  const details = await fs.stat(resolvedDirectory);
+  if (!details.isDirectory()) throw new Error('The Notes export location must be a folder.');
+
+  const settingsFile = path.join(app.getPath('userData'), 'notes-settings.json');
+  await fs.mkdir(path.dirname(settingsFile), { recursive: true });
+  await fs.writeFile(settingsFile, JSON.stringify({ exportDirectory: resolvedDirectory }, null, 2), 'utf8');
+  noteExportDirectory = resolvedDirectory;
+  watchNoteExportDirectory(resolvedDirectory);
+  return getNoteExportDirectory();
+}
+
+function watchNoteExportDirectory(directory) {
+  if (noteExportDirectoryWatcherPath === directory && noteExportDirectoryWatcher) return;
+  noteExportDirectoryWatcher?.close();
+  noteExportDirectoryWatcherPath = directory;
+  try {
+    const watcher = watchFileSystem(directory, { persistent: false }, () => {
+      if (noteExportWatchTimer) clearTimeout(noteExportWatchTimer);
+      noteExportWatchTimer = setTimeout(() => emitToWindows('notes-files-changed'), 150);
+    });
+    watcher.on('error', error => {
+      console.error('Could not monitor the Notes export folder:', error);
+      watcher.close();
+      if (noteExportDirectoryWatcher === watcher) {
+        noteExportDirectoryWatcher = undefined;
+        noteExportDirectoryWatcherPath = undefined;
+      }
+    });
+    noteExportDirectoryWatcher = watcher;
+  } catch (error) {
+    noteExportDirectoryWatcherPath = undefined;
+    console.error('Could not monitor the Notes export folder:', error);
+  }
+}
+
+async function listNoteExportFiles() {
+  const { directory } = await getNoteExportDirectory();
+  await fs.mkdir(directory, { recursive: true });
+  watchNoteExportDirectory(directory);
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(
+    entries
+      .filter(entry => entry.isFile() && ['.txt', '.md'].includes(path.extname(entry.name).toLowerCase()))
+      .map(async entry => {
+        const details = await fs.stat(path.join(directory, entry.name));
+        return {
+          name: entry.name,
+          size: details.size,
+          modifiedAt: details.mtime.toISOString()
+        };
+      })
+  );
+  return files.sort((left, right) => right.modifiedAt.localeCompare(left.modifiedAt));
+}
+
 function configureIpc() {
   ipcMain.handle('cursor:subscribe', () => {
     lastGlobalCursor = undefined;
@@ -312,6 +435,82 @@ function configureIpc() {
     const file = path.join(app.getPath('userData'), name);
     await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.writeFile(file, JSON.stringify(values, null, 2), 'utf8');
+  });
+
+  ipcMain.handle('notes:quick-export', async (event, { fileName, content }) => {
+    currentWindow(event);
+    const safeFileName = validateNoteFileRequest(fileName, content, 'txt');
+    const { directory: notesDirectory } = await getNoteExportDirectory();
+    await fs.mkdir(notesDirectory, { recursive: true });
+    const filePath = await writeUniqueNoteFile(notesDirectory, safeFileName, content);
+    emitToWindows('notes-files-changed');
+    return filePath;
+  });
+  ipcMain.handle('notes:save-as', async (event, { fileName, content, format }) => {
+    const safeFileName = validateNoteFileRequest(fileName, content, format);
+    const owner = currentWindow(event);
+    const { directory } = await getNoteExportDirectory();
+    await fs.mkdir(directory, { recursive: true });
+    const result = await dialog.showSaveDialog(owner, {
+      title: 'Save note as',
+      defaultPath: path.join(directory, safeFileName),
+      filters: [{ name: 'Text or Markdown', extensions: ['txt', 'md'] }]
+    });
+    if (result.canceled || !result.filePath) return { canceled: true };
+
+    let outputPath = result.filePath;
+    const selectedExtension = path.extname(outputPath).toLowerCase();
+    if (selectedExtension !== '.txt' && selectedExtension !== '.md') {
+      const selectedPath = path.parse(outputPath);
+      outputPath = path.join(selectedPath.dir, `${selectedPath.name}.${format}`);
+    }
+    await fs.writeFile(outputPath, content, 'utf8');
+    emitToWindows('notes-files-changed');
+    return { canceled: false, filePath: outputPath };
+  });
+  ipcMain.handle('notes:export-directory:get', async event => {
+    currentWindow(event);
+    return getNoteExportDirectory();
+  });
+  ipcMain.handle('notes:export-directory:choose', async event => {
+    const owner = currentWindow(event);
+    const current = await getNoteExportDirectory();
+    const result = await dialog.showOpenDialog(owner, {
+      title: 'Choose Notes export folder',
+      defaultPath: current.directory,
+      properties: ['openDirectory', 'createDirectory']
+    });
+    if (result.canceled || !result.filePaths[0]) {
+      return { canceled: true, ...current };
+    }
+    return {
+      canceled: false,
+      ...(await saveNoteExportDirectory(result.filePaths[0]))
+    };
+  });
+  ipcMain.handle('notes:export-directory:reset', async event => {
+    currentWindow(event);
+    return saveNoteExportDirectory(defaultNoteExportDirectory());
+  });
+  ipcMain.handle('notes:files:list', async event => {
+    currentWindow(event);
+    return listNoteExportFiles();
+  });
+  ipcMain.handle('notes:file:open', async (event, { fileName }) => {
+    currentWindow(event);
+    if (
+      typeof fileName !== 'string' ||
+      path.basename(fileName) !== fileName ||
+      !['.txt', '.md'].includes(path.extname(fileName).toLowerCase())
+    ) {
+      throw new Error('Invalid Notes filename.');
+    }
+    const { directory } = await getNoteExportDirectory();
+    const filePath = path.join(directory, fileName);
+    const details = await fs.stat(filePath);
+    if (!details.isFile()) throw new Error('The selected Notes item is not a file.');
+    const error = await shell.openPath(filePath);
+    if (error) throw new Error(`Could not open the note file: ${error}`);
   });
 
   ipcMain.handle('open_dashboard', () => createDashboard());
