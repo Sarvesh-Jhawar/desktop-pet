@@ -7,6 +7,7 @@ import { MotivationalQuoteService } from '../../core/motivational-quote.service'
 import { MotivationalStoryService } from '../../core/motivational-story.service';
 import { PetStateService } from '../../core/pet-state.service';
 import { SpeechService } from '../../core/speech.service';
+import { SoundService } from '../../core/sound.service';
 import { TaskStoreService } from '../../core/task-store.service';
 import type { MotivationalQuote } from '../../core/motivational-quote.service';
 import type { MotivationalStory } from '../../core/motivational-story.service';
@@ -125,6 +126,9 @@ describe('Pet', () => {
   });
 
   it('opens the quick-action wheel on right-click and closes it with Escape', async () => {
+    const sound = TestBed.inject(SoundService);
+    const playWheelOpen = vi.spyOn(sound, 'playWheelOpen');
+    const playWheelClose = vi.spyOn(sound, 'playWheelClose');
     const canvas = fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement;
     const contextMenu = new MouseEvent('contextmenu', {
       button: 2,
@@ -146,11 +150,54 @@ describe('Pet', () => {
     expect(quickActionWheel).toBeTruthy();
     expect(quickActionWheel.style.left).toBe('40%');
     expect(quickActionWheel.style.top).toBe('30%');
+    expect(quickActionWheel.querySelectorAll('.quick-wheel-slice')).toHaveLength(6);
+    expect(playWheelOpen).toHaveBeenCalledOnce();
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     fixture.detectChanges();
 
     expect(component.quickActionsVisible()).toBe(false);
+    expect(playWheelClose).toHaveBeenCalledOnce();
+  });
+
+  it('updates the wheel hub on slice changes and confirms selected actions', async () => {
+    const sound = TestBed.inject(SoundService);
+    const playHoverTick = vi.spyOn(sound, 'playHoverTick');
+    const playWheelConfirm = vi.spyOn(sound, 'playWheelConfirm');
+
+    component.quickActionsVisible.set(true);
+    fixture.detectChanges();
+    component.setActiveQuickAction(0);
+    component.setActiveQuickAction(0);
+    fixture.detectChanges();
+
+    expect(playHoverTick).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.querySelector('.quick-wheel-center').textContent)
+      .toContain('Start timer');
+
+    const svg = fixture.nativeElement.querySelector('.quick-wheel') as SVGSVGElement;
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 220,
+      bottom: 220,
+      width: 220,
+      height: 220,
+      toJSON: () => ({})
+    });
+    component.onQuickWheelMouseMove(new MouseEvent('mousemove', { clientX: 110, clientY: 110 }));
+    fixture.detectChanges();
+
+    expect(component.activeQuickActionIndex()).toBeNull();
+    expect(fixture.nativeElement.querySelector('.quick-wheel-center').textContent)
+      .toContain('Quick actions');
+
+    await component.activateQuickAction(0);
+
+    expect(playWheelConfirm).toHaveBeenCalledOnce();
+    expect(component.quickTimerMode()).toBe(true);
   });
 
   it('shows separate add and complete task screens with back navigation', async () => {
@@ -176,6 +223,7 @@ describe('Pet', () => {
       completed: true
     });
 
+    component.quickActionsVisible.set(true);
     await component.beginQuickTask();
     fixture.detectChanges();
 
@@ -308,11 +356,11 @@ describe('Pet', () => {
     expect(petState.getState()).toBe('celebrating');
   });
 
-  it('opens the Motivation menu with quote and story choices', () => {
+  it('opens the Motivation menu with quote and story choices', async () => {
     component.quickActionsVisible.set(true);
     fixture.detectChanges();
 
-    fixture.nativeElement.querySelector('.motivate-action').click();
+    await component.activateQuickAction(5);
     fixture.detectChanges();
 
     expect(component.quickMotivationMode()).toBe(true);

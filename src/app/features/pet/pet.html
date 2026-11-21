@@ -246,24 +246,45 @@
           </section>
         }
       } @else {
-        <button class="quick-action start-focus" (click)="openQuickTimerOptions()">
-          Start timer
-        </button>
-        <button class="quick-action motivate-action" (click)="openQuickMotivationMenu()">
-          Motivation
-        </button>
-        <button class="quick-action add-task" (click)="beginQuickTask()">
-          Tasks
-        </button>
-        <button class="quick-action add-reminder" (click)="openQuickReminderForm()">
-          Add reminder
-        </button>
-        <button class="quick-action read-out-action" (click)="openQuickReadOutMenu()">
-          Read out
-        </button>
-        <button class="quick-action dashboard-action" (click)="openDashboardFromWheel()">
-          Dashboard
-        </button>
+        <svg class="quick-wheel" viewBox="0 0 220 220" (mousemove)="onQuickWheelMouseMove($event)">
+          @for (action of quickWheelActions; track action.id; let i = $index) {
+            <path
+              class="quick-wheel-slice"
+              [class.active]="activeQuickActionIndex() === i"
+              [attr.d]="quickWheelSlicePath(i)"
+              role="button"
+              tabindex="0"
+              [attr.aria-label]="action.label + '. ' + action.hint"
+              (mouseenter)="setActiveQuickAction(i)"
+              (focus)="setActiveQuickAction(i)"
+              (click)="activateQuickAction(i)"
+              (keydown)="onQuickWheelKeydown($event, i)"
+            >
+              <title>{{ action.label }}: {{ action.hint }}</title>
+            </path>
+            <text
+              class="quick-wheel-icon"
+              [attr.x]="quickWheelLabelPoint(i, 70).x"
+              [attr.y]="quickWheelLabelPoint(i, 70).y"
+            >{{ action.icon }}</text>
+            <text
+              class="quick-wheel-label"
+              [class.active]="activeQuickActionIndex() === i"
+              [attr.x]="quickWheelLabelPoint(i, 88).x"
+              [attr.y]="quickWheelLabelPoint(i, 88).y"
+            >{{ action.shortLabel }}</text>
+          }
+          <circle class="quick-wheel-hub" cx="110" cy="110" r="40" />
+        </svg>
+        <div class="quick-wheel-center" aria-live="polite" aria-atomic="true">
+          @if (activeQuickAction; as action) {
+            <strong>{{ action.label }}</strong>
+            <span>{{ action.hint }}</span>
+          } @else {
+            <strong>Quick actions</strong>
+            <span>Select a slice</span>
+          }
+        </div>
       }
       @if (quickActionError()) {
         <span class="quick-action-error" role="alert">{{ quickActionError() }}</span>

@@ -86,11 +86,89 @@ canvas {
   container-type: inline-size;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
-  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 50%;
-  background: rgba(34, 39, 54, 0.94);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
-  backdrop-filter: blur(8px);
+  background: transparent;
+}
+
+.quick-wheel {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.4));
+}
+
+.quick-wheel-slice {
+  fill: rgba(18, 22, 30, 0.94);
+  stroke: rgba(255, 255, 255, 0.24);
+  stroke-width: 1.5;
+  cursor: pointer;
+  outline: none;
+  transition: fill 120ms ease, filter 120ms ease;
+}
+
+.quick-wheel-slice:hover,
+.quick-wheel-slice:focus-visible,
+.quick-wheel-slice.active {
+  fill: rgba(35, 91, 123, 0.98);
+  stroke: rgba(125, 211, 252, 0.95);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 7px rgba(125, 211, 252, 0.6));
+}
+
+.quick-wheel-icon,
+.quick-wheel-label {
+  fill: #f8fafc;
+  pointer-events: none;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.quick-wheel-icon {
+  font: 20px Arial, sans-serif;
+}
+
+.quick-wheel-label {
+  font: 600 9px Arial, sans-serif;
+  paint-order: stroke;
+  stroke: rgba(12, 15, 20, 0.85);
+  stroke-linejoin: round;
+  stroke-width: 2px;
+}
+
+.quick-wheel-label.active {
+  fill: #bae6fd;
+}
+
+.quick-wheel-hub {
+  fill: rgba(12, 15, 20, 0.98);
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.quick-wheel-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: 32%;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  pointer-events: none;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.quick-wheel-center strong {
+  font: 700 clamp(9px, 4cqw, 12px) / 1.15 Arial, sans-serif;
+}
+
+.quick-wheel-center span {
+  color: #cbd5e1;
+  font: 400 clamp(7px, 3cqw, 9px) / 1.2 Arial, sans-serif;
 }
 
 .quick-action-error {
@@ -385,68 +463,11 @@ canvas {
   font-weight: 400;
 }
 
-.quick-action {
-  position: absolute;
-  width: 34%;
-  min-height: clamp(34px, 17.5cqw, 58px);
-  padding: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 16px;
-  background: #fff;
-  color: #252a38;
-  font: 600 clamp(9px, 3.4cqw, 16px) / 1.15 Arial, sans-serif;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transform: translate(-50%, -50%);
-}
-
-.quick-action:hover,
-.quick-action:focus-visible,
 .quick-task-form button:hover,
 .quick-task-form button:focus-visible {
   background: #dff5ff;
   outline: 2px solid #60c7f2;
   outline-offset: 1px;
-}
-
-.start-focus {
-  left: 50%;
-  top: 10%;
-}
-
-.add-task {
-  left: 83%;
-  top: 32%;
-}
-
-.motivate-action {
-  left: 17%;
-  top: 32%;
-}
-
-.pet-action {
-  left: 83%;
-  top: 68%;
-}
-
-.dashboard-action {
-  left: 50%;
-  top: 90%;
-}
-
-.add-reminder {
-  left: 17%;
-  top: 68%;
-}
-
-.read-out-action {
-  left: 83%;
-  top: 68%;
-}
-
-.sleep-action {
-  left: 17%;
-  top: 68%;
 }
 
 .quick-action-close {
@@ -672,7 +693,6 @@ canvas {
 
 @media (prefers-reduced-motion: reduce) {
   canvas,
-  .quick-action,
   .speech-bubble,
   .speech-stop {
     animation: none;

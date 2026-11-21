@@ -1,7 +1,17 @@
 import { Injectable } from '@angular/core';
 import { load } from './desktop-bridge';
 
-export type SoundEvent = 'click' | 'taskComplete' | 'timerComplete' | 'reminder' | 'greeting' | 'health';
+export type SoundEvent =
+  | 'click'
+  | 'taskComplete'
+  | 'timerComplete'
+  | 'reminder'
+  | 'greeting'
+  | 'health'
+  | 'wheelHover'
+  | 'wheelOpen'
+  | 'wheelConfirm'
+  | 'wheelClose';
 
 const SOUND_FILES: Record<SoundEvent, string> = {
   click: 'assets/sounds/click.ogg',
@@ -9,12 +19,19 @@ const SOUND_FILES: Record<SoundEvent, string> = {
   timerComplete: 'assets/sounds/complete.ogg',
   reminder: 'assets/sounds/notify.ogg',
   greeting: 'assets/sounds/pop.ogg',
-  health: 'assets/sounds/pop.ogg'
+  health: 'assets/sounds/pop.ogg',
+  wheelHover: 'assets/sounds/pop.ogg',
+  wheelOpen: 'assets/sounds/pop.ogg',
+  wheelConfirm: 'assets/sounds/confirm.ogg',
+  wheelClose: 'assets/sounds/click.ogg'
 };
+
+const WHEEL_HOVER_COOLDOWN_MS = 70;
 
 @Injectable({ providedIn: 'root' })
 export class SoundService {
   private enabled = false;
+  private lastWheelHoverAt = Number.NEGATIVE_INFINITY;
   private readonly cache = new Map<SoundEvent, HTMLAudioElement>();
 
   async init(): Promise<void> {
@@ -35,6 +52,25 @@ export class SoundService {
         audio.currentTime = 0;
       }
     }
+  }
+
+  playHoverTick(): void {
+    const now = Date.now();
+    if (now - this.lastWheelHoverAt < WHEEL_HOVER_COOLDOWN_MS) return;
+    this.lastWheelHoverAt = now;
+    this.play('wheelHover');
+  }
+
+  playWheelOpen(): void {
+    this.play('wheelOpen');
+  }
+
+  playWheelConfirm(): void {
+    this.play('wheelConfirm');
+  }
+
+  playWheelClose(): void {
+    this.play('wheelClose');
   }
 
   play(event: SoundEvent): void {

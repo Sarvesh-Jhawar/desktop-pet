@@ -68,6 +68,22 @@ interface SpeechQueueItem {
   resolve: () => void;
 }
 
+type QuickWheelActionId =
+  | 'timer'
+  | 'tasks'
+  | 'read-out'
+  | 'dashboard'
+  | 'reminder'
+  | 'motivation';
+
+interface QuickWheelAction {
+  id: QuickWheelActionId;
+  label: string;
+  shortLabel: string;
+  hint: string;
+  icon: string;
+}
+
 function splitIntoSentences(message: string): string[] {
   const sentences = message.match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g);
   return sentences?.map(sentence => sentence.trim()).filter(Boolean) ?? [message];
@@ -80,6 +96,15 @@ const SIZE_MAP: Record<PetSize, number> = {
 };
 
 const QUICK_ACTION_DIAMETER = Math.round(SIZE_MAP.medium * 0.88);
+
+const QUICK_WHEEL_ACTIONS: QuickWheelAction[] = [
+  { id: 'timer', label: 'Start timer', shortLabel: 'Timer', hint: 'Choose a duration', icon: '⏱' },
+  { id: 'tasks', label: 'Tasks', shortLabel: 'Tasks', hint: 'Add or complete a task', icon: '✓' },
+  { id: 'read-out', label: 'Read out', shortLabel: 'Read out', hint: 'Hear tasks, timers, or reminders', icon: '◉' },
+  { id: 'dashboard', label: 'Dashboard', shortLabel: 'Dashboard', hint: 'Open your dashboard', icon: '▦' },
+  { id: 'reminder', label: 'Add reminder', shortLabel: 'Reminder', hint: 'Create a reminder', icon: '🔔' },
+  { id: 'motivation', label: 'Motivation', shortLabel: 'Motivate', hint: 'Get a quote or story', icon: '✦' }
+];
 
 const SPEECH_BUBBLE_SYNC_DELAY_MS = 180;
 @Component({
@@ -160,6 +185,15 @@ export class Pet implements OnInit, OnDestroy {
   quickActionWheelRef?: ElementRef<HTMLDivElement>;
 
   quickActionsVisible = signal(false);
+
+  readonly quickWheelActions = QUICK_WHEEL_ACTIONS;
+
+  activeQuickActionIndex = signal<number | null>(null);
+
+  get activeQuickAction(): QuickWheelAction | undefined {
+    const index = this.activeQuickActionIndex();
+    return index === null ? undefined : this.quickWheelActions[index];
+  }
 
   quickTimerMode = signal(false);
 
@@ -300,11 +334,15 @@ export class Pet implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
 
     if (this.quickActionsOverlay) {
+      await this.sound.init();
       this.quickActionsVisible.set(true);
+      this.sound.playWheelOpen();
       window.addEventListener('pointerdown', this.onGlobalPointerDown);
       window.addEventListener('keydown', this.onQuickActionsKeyDown);
       setTimeout(() => {
-        this.quickActionWheelRef?.nativeElement.querySelector('button')?.focus();
+        this.quickActionWheelRef?.nativeElement
+          .querySelector<SVGPathElement>('.quick-wheel-slice')
+          ?.focus();
       });
       return;
     }
@@ -1365,14 +1403,21 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
     this.quickActionError.set('');
     this.quickActionPosition.set({ x, y });
     this.quickActionsVisible.set(true);
+    this.activeQuickActionIndex.set(null);
+    this.sound.playWheelOpen();
     setTimeout(() => {
-      this.quickActionWheelRef?.nativeElement.querySelector('button')?.focus();
+      this.quickActionWheelRef?.nativeElement
+        .querySelector<SVGPathElement>('.quick-wheel-slice')
+        ?.focus();
     });
   }
 
   closeQuickActions(): void {
+    const wasVisible = this.quickActionsVisible();
     const closeOverlay = this.quickActionsOverlay && this.quickActionsVisible();
     this.quickActionsVisible.set(false);
+    this.activeQuickActionIndex.set(null);
+    if (wasVisible) this.sound.playWheelClose();
     this.quickTimerMode.set(false);
     this.quickReminderMode.set(false);
     this.quickReadOutMode.set(false);
@@ -1393,6 +1438,92 @@ console.log('--- All enums in file ---', JSON.stringify(this.rive?.enums(), null
         console.error('Failed to close Quick Actions:', error);
       });
     }
+  }
+
+  quickWheelSlicePath(index: number): string {
+    const center = 110;
+    const outerRadius = 106;
+    const innerRadius = 42;
+    const startAngle = -90 + index * 60 + 1.5;
+    const endAngle = -90 + (index + 1) * 60 - 1.5;
+    const outerStart = this.quickWheelPoint(center, outerRadius, startAngle);
+    const outerEnd = this.quickWheelPoint(center, outerRadius, endAngle);
+    const innerEnd = this.quickWheelPoint(center, innerRadius, endAngle);
+    const innerStart = this.quickWheelPoint(center, innerRadius, startAngle);
+
+    return [
+      `M ${outerStart.x} ${outerStart.y}`,
+      `A ${outerRadius} ${outerRadius} 0 0 1 ${outerEnd.x} ${outerEnd.y}`,
+      `L ${innerEnd.x} ${innerEnd.y}`,
+      `A ${innerRadius} ${innerRadius} 0 0 0 ${innerStart.x} ${innerStart.y}`,
+      'Z'
+    ].join(' ');
+  }
+
+  quickWheelLabelPoint(index: number, radius: number): { x: number; y: number } {
+    return this.quickWheelPoint(110, radius, -60 + index * 60);
+  }
+
+  setActiveQuickAction(index: number): void {
+    if (this.activeQuickActionIndex() === index) return;
+    this.activeQuickActionIndex.set(index);
+    this.sound.playHoverTick();
+  }
+
+  onQuickWheelMouseMove(event: MouseEvent): void {
+    const svg = this.quickActionWheelRef?.nativeElement
+      .querySelector<SVGSVGElement>('.quick-wheel');
+    const bounds = svg?.getBoundingClientRect();
+    if (!bounds || bounds.width === 0 || bounds.height === 0) return;
+
+    const x = (event.clientX - bounds.left) * 220 / bounds.width - 110;
+    const y = (event.clientY - bounds.top) * 220 / bounds.height - 110;
+    if (Math.hypot(x, y) < 42) this.activeQuickActionIndex.set(null);
+  }
+
+  onQuickWheelKeydown(event: KeyboardEvent, index: number): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    void this.activateQuickAction(index);
+  }
+
+  async activateQuickAction(index: number): Promise<void> {
+    const action = this.quickWheelActions[index];
+    if (!action) return;
+
+    this.sound.playWheelConfirm();
+    switch (action.id) {
+      case 'timer':
+        this.openQuickTimerOptions();
+        break;
+      case 'tasks':
+        await this.beginQuickTask();
+        break;
+      case 'read-out':
+        this.openQuickReadOutMenu();
+        break;
+      case 'dashboard':
+        await this.openDashboardFromWheel();
+        break;
+      case 'reminder':
+        this.openQuickReminderForm();
+        break;
+      case 'motivation':
+        this.openQuickMotivationMenu();
+        break;
+    }
+  }
+
+  private quickWheelPoint(
+    center: number,
+    radius: number,
+    angleDegrees: number
+  ): { x: number; y: number } {
+    const angle = angleDegrees * Math.PI / 180;
+    return {
+      x: Number((center + Math.cos(angle) * radius).toFixed(2)),
+      y: Number((center + Math.sin(angle) * radius).toFixed(2))
+    };
   }
 
   private onGlobalPointerDown = (event: PointerEvent): void => {
